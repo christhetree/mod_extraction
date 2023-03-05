@@ -1,0 +1,16 @@
+name: lfotcn
+channels:
+  - defaults
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch
+  - torchaudio
+  - cudatoolkit=11.7
+  - pip:
+    - matplotlib
+    - pedalboard
+    - pip-chill
+    - pytorch-lightning

@@ -1,0 +1,12 @@
+name: lfotcn
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - matplotlib
+    - pedalboard
+    - pip-chill
+    - pytorch-lightning
+    - torchaudio
