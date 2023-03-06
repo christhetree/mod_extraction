@@ -4,7 +4,7 @@ ckpt_path: null
 custom:
   project_name: "lfo_tcn"
   model_name: "lfo_tcn"
-  dataset_name: "phaser"
+  dataset_name: "flanger_rate_cos"
   cpu_batch_size: 3
 
 trainer:
@@ -14,7 +14,7 @@ trainer:
   max_epochs: 200
 
 data:
-  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
+  class_path: lfo_tcn.data_modules.FlangerCPUDataModule
   init_args:
     batch_size: 256
     num_workers: 8
@@ -29,31 +29,43 @@ data:
     silence_threshold_energy: 1e-4
     n_retries: 20
     fx_config:
-      pedalboard_phaser:
+      mod_sig:
         rate_hz:
           min: 0.25
           max: 5.0
-        depth:
-          min: 0.5
-          max: 0.5
-        #    min: 0.2
-        #    max: 0.7
-        #    min: 0.2
-        #    max: 1.0
-        centre_frequency_hz:
-          min: 420.0
-          max: 460.0
-        #    min: 200.0
-        #    max: 800.0
-        #    min: 70.0
-        #    max: 18000.0
+        phase:
+          min: 0.0
+          max: 6.28318530718
+        shapes:
+          - "cos"
+      #    - "tri"
+      #    - "saw"
+      #    - "rsaw"
+      #    - "sqr"
+      flanger:
+        max_delay_ms: 5.0
+      #  max_delay_ms: 10.0
         feedback:
-          min: 0.5
-          max: 0.5
-        #    min: 0.2
-        #    max: 0.7
-        #    min: 0.0
-        #    max: 0.7
+          min: 0.0
+          max: 0.0
+      #    min: 0.2
+      #    max: 0.7
+      #    min: 0.0
+      #    max: 0.7
+        width:
+          min: 1.0
+          max: 1.0
+      #    min: 0.2
+      #    max: 0.7
+      #    min: 0.2
+      #    max: 1.0
+        depth:
+          min: 1.0
+          max: 1.0
+      #    min: 0.2
+      #    max: 0.7
+      #    min: 0.2
+      #    max: 1.0
         mix:
           min: 1.0
           max: 1.0

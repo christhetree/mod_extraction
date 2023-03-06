@@ -5,15 +5,14 @@ from typing import Dict, Optional, List, Any
 
 import torch as tr
 import torchaudio
-import yaml
 from matplotlib import pyplot as plt
 from pedalboard import Pedalboard, Phaser
 from scipy.stats import loguniform
 from torch import Tensor as T
 from torch.utils.data import Dataset
-from torchaudio.transforms import Spectrogram
 
 from lfo_tcn.fx import make_mod_signal
+from lfo_tcn.util import display_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -144,9 +143,10 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         return audio_chunk, mod_sig
 
 
-class PedalboardPhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
+class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        assert "pedalboard_phaser" in self.fx_config
         self.max_file_n_samples = 0
         for file_path in self.input_paths:
             file_n_samples = torchaudio.info(file_path).num_frames
@@ -157,9 +157,8 @@ class PedalboardPhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
         dataset_min_rate_hz = 1 / dataset_min_rate_period
         log.info(f"dataset_min_rate_hz = {dataset_min_rate_hz:.2f}")
         assert dataset_min_rate_hz <= self.fx_config["pedalboard_phaser"]["rate_hz"]["min"]
-        self.spectrogram = Spectrogram(n_fft=512, power=1, center=True, normalized=False)
 
-    def __getitem__(self, _) -> (T, T, T):
+    def __getitem__(self, idx: int) -> (T, T, T):
         rate_hz = self.sample_log_uniform(
             self.fx_config["pedalboard_phaser"]["rate_hz"]["min"],
             self.fx_config["pedalboard_phaser"]["rate_hz"]["max"],
@@ -195,13 +194,11 @@ class PedalboardPhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
         mod_sig = proc_mod_sig[start_idx:start_idx + self.n_samples]
 
         if self.use_debug_mode:
-            plt.plot(mod_sig)
+            plt.plot(mod_sig.squeeze(0))
+            plt.title("mod_sig")
             plt.show()
-            torchaudio.save("../out/dry.wav", dry, self.sr)
-            torchaudio.save("../out/wet.wav", wet, self.sr)
-            y_spec = tr.log(self.spectrogram(wet.squeeze()))
-            plt.imshow(y_spec, aspect="auto", interpolation="none")
-            plt.show()
+            display_spectrogram(dry, save_audio=True, name="phaser_dry", idx=idx)
+            display_spectrogram(wet, save_audio=True, name="phaser_wet", idx=idx)
 
         return dry, wet, mod_sig
 

@@ -564,3 +564,4 @@ data/
 out/
 lightning_logs/
 wandb_logs/
+scratch.py

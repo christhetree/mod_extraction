@@ -1,11 +1,15 @@
 import logging
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 import pytorch_lightning as pl
+from matplotlib import pyplot as plt
+from torch import Tensor as T
 from torch.utils.data import DataLoader
 
-from lfo_tcn.datasets import PedalboardPhaserGeneratorDataset
+from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset
+from lfo_tcn.fx import FlangerModule
+from lfo_tcn.util import display_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -50,7 +54,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.train_dataset = PedalboardPhaserGeneratorDataset(
+            self.train_dataset = PedalboardPhaserDataset(
                 self.train_dir,
                 self.n_samples,
                 self.fx_config,
@@ -61,9 +65,8 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                 self.n_retries,
                 self.use_debug_mode,
             )
-
         if stage == "validate" or "fit":
-            self.val_dataset = PedalboardPhaserGeneratorDataset(
+            self.val_dataset = PedalboardPhaserDataset(
                 self.val_dir,
                 self.n_samples,
                 self.fx_config,
@@ -94,14 +97,68 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
         )
 
 
-if __name__ == "__main__":
-    dm = PedalboardPhaserDataModule(
-        32,
-        "/Users/puntland/local_christhetree/aim/erase-fx/data/guitarset/train",
-        "/Users/puntland/local_christhetree/aim/erase-fx/data/guitarset/val",
-        20,
-        10,
-        88100,
-        {},
-    )
-    print(dm.hparams)
+class FlangerCPUDataModule(PedalboardPhaserDataModule):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.flanger = None
+
+    def setup(self, stage: str) -> None:
+        self.flanger = FlangerModule(batch_size=self.batch_size,
+                                     n_ch=1,
+                                     n_samples=self.n_samples,
+                                     max_delay_ms=self.fx_config["flanger"]["max_delay_ms"],
+                                     sr=self.sr)
+        if stage == "fit":
+            self.train_dataset = RandomAudioChunkAndModSigDataset(
+                self.train_dir,
+                self.n_samples,
+                self.fx_config,
+                self.sr,
+                self.ext,
+                self.train_num_examples_per_epoch,
+                self.silence_threshold_energy,
+                self.n_retries,
+                self.use_debug_mode,
+            )
+        if stage == "validate" or "fit":
+            self.val_dataset = RandomAudioChunkAndModSigDataset(
+                self.val_dir,
+                self.n_samples,
+                self.fx_config,
+                self.sr,
+                self.ext,
+                self.val_num_examples_per_epoch,
+                self.silence_threshold_energy,
+                self.n_retries,
+                self.use_debug_mode,
+            )
+
+    def on_before_batch_transfer(self, batch: List[T], dataloader_idx: int) -> List[T]:
+        dry, mod_sig = batch
+        feedback = RandomAudioChunkDataset.sample_uniform(
+            self.fx_config["flanger"]["feedback"]["min"],
+            self.fx_config["flanger"]["feedback"]["max"]
+        )
+        width = RandomAudioChunkDataset.sample_uniform(
+            self.fx_config["flanger"]["width"]["min"],
+            self.fx_config["flanger"]["width"]["max"]
+        )
+        depth = RandomAudioChunkDataset.sample_uniform(
+            self.fx_config["flanger"]["depth"]["min"],
+            self.fx_config["flanger"]["depth"]["max"]
+        )
+        mix = RandomAudioChunkDataset.sample_uniform(
+            self.fx_config["flanger"]["mix"]["min"],
+            self.fx_config["flanger"]["mix"]["max"]
+        )
+        wet = self.flanger(dry, mod_sig, feedback, width, depth, mix)
+
+        if self.use_debug_mode:
+            for idx, (d, w, m) in enumerate(zip(dry, wet, mod_sig)):
+                plt.plot(m.squeeze(0))
+                plt.title("mod_sig")
+                plt.show()
+                display_spectrogram(d, save_audio=True, name="flanger_dry", idx=idx)
+                display_spectrogram(w, save_audio=True, name="flanger_wet", idx=idx)
+
+        return [dry, wet, mod_sig]
