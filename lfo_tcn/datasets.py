@@ -9,144 +9,15 @@ import yaml
 from matplotlib import pyplot as plt
 from pedalboard import Pedalboard, Phaser
 from scipy.stats import loguniform
-from torch import Tensor as T, nn
+from torch import Tensor as T
 from torch.utils.data import Dataset
 from torchaudio.transforms import Spectrogram
+
+from lfo_tcn.fx import make_mod_signal
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
-
-
-def make_mod_signal(n_samples: int,
-                    sr: float,
-                    freq: float,
-                    phase: float = 0.0,
-                    shape: str = "cos") -> T:
-    assert n_samples > 0
-    assert 0.0 < freq < sr / 2.0
-    assert -2 * tr.pi <= phase <= 2 * tr.pi
-    assert shape in {"cos", "tri", "saw", "rsaw", "sqr"}
-    argument = tr.cumsum(2 * tr.pi * tr.full((n_samples,), freq) / sr, dim=0) + phase
-
-    if shape == "cos":
-        return (tr.cos(argument + tr.pi) + 1.0) / 2.0
-    if shape == "sqr":
-        cos = tr.cos(argument + tr.pi)
-        sqr = tr.sign(cos)
-        return (sqr + 1.0) / 2.0
-    saw = tr.remainder(argument, 2 * tr.pi) / (2 * tr.pi)
-    if shape == "saw":
-        return saw
-    if shape == "rsaw":
-        return 1.0 - saw
-    tri = 2 * saw
-    tri = tr.where(tri > 1.0, 2.0 - tri, tri)
-    return tri
-
-
-def apply_tremolo(x: T, mod_sig: T, mix: float = 1.0) -> T:
-    assert x.size(-1) == mod_sig.size(-1)
-    assert 0.0 <= mix <= 1.0
-
-    return ((1.0 - mix) * x) + (mix * mod_sig * x)
-
-
-def apply_delay(x: T, mod_sig: T, mix: float = 1.0, use_feedback: bool = False) -> T:
-    assert x.size(-1) == mod_sig.size(-1)
-    out = tr.clone(x)
-    for x_idx in range(x.size(-1)):
-        delay_idx = int(x_idx - mod_sig[..., x_idx])
-        if 0 <= delay_idx < x.size(-1):
-            if use_feedback:
-                out[..., x_idx] = ((1.0 - mix) * out[..., x_idx]) + (mix * out[..., delay_idx])
-            else:
-                out[..., x_idx] = ((1.0 - mix) * x[..., x_idx]) + (mix * x[..., delay_idx])
-    return out
-
-
-def apply_flanger(x: T,
-                  mod_sig: T,
-                  delay_buf: T,
-                  out_buf: T,
-                  max_delay_samples: int,
-                  feedback: float = 0.0,
-                  width: float = 1.0,
-                  depth: float = 1.0,
-                  mix: float = 1.0) -> T:
-                  # max_delay_ms: float = 10.0,
-                  # sr: float = 44100) -> T:
-    assert x.ndim == 3
-    assert x.size(0) == mod_sig.size(0)
-    assert x.size(-1) == mod_sig.size(-1)
-    assert 0.0 <= width <= 1.0
-    assert 0.0 <= feedback < 1.0
-    assert 0.0 <= depth <= 1.0
-    assert 0.0 <= mix <= 1.0
-    if width == 0.0 or depth == 0.0 or mix == 0.0:
-        return x
-    batch_size, n_ch, n_samples = x.shape
-    if mod_sig.ndim == 2:
-        mod_sig = mod_sig.unsqueeze(1).expand(-1, n_ch, -1)
-
-    # max_delay_samples = int(((max_delay_ms / 1000.0) * sr) + 0.5)
-    # delay_buf = tr.zeros((batch_size, n_ch, max_delay_samples))
-    # out_buf = tr.zeros_like(x)
-
-    delay_write_idx = 0
-    for idx in range(n_samples):
-        audio_val = x[:, :, idx]
-        mod_val = mod_sig[:, :, idx]
-        delay_samples = max_delay_samples * width * mod_val
-        delay_read_idx = (delay_write_idx - delay_samples + max_delay_samples) % max_delay_samples
-        delay_read_fraction = delay_read_idx - tr.floor(delay_read_idx)
-        prev_idx = tr.floor(delay_read_idx).to(tr.long).unsqueeze(-1)
-        next_idx = (prev_idx + 1) % max_delay_samples
-        prev_val = tr.gather(delay_buf, dim=-1, index=prev_idx).squeeze(-1)
-        next_val = tr.gather(delay_buf, dim=-1, index=next_idx).squeeze(-1)
-        interp_val = (delay_read_fraction * next_val) + ((1.0 - delay_read_fraction) * prev_val)
-        delay_buf[:, :, delay_write_idx] = audio_val + (feedback * interp_val)
-        out_buf[:, :, idx] = audio_val + (depth * interp_val)
-
-        delay_write_idx += 1
-        if delay_write_idx == max_delay_samples:
-            delay_write_idx = 0
-
-    out_buf = ((1.0 - mix) * x) + (mix * out_buf)
-    return out_buf
-
-
-class FlangerModule(nn.Module):
-    def __init__(self,
-                 batch_size: int,
-                 n_ch: int,
-                 n_samples: int,
-                 max_delay_ms: float = 10.0,
-                 sr: float = 44100) -> None:
-        super().__init__()
-        self.max_delay_samples = int(((max_delay_ms / 1000.0) * sr) + 0.5)
-        self.register_buffer("delay_buf", tr.zeros((batch_size, n_ch, self.max_delay_samples)))
-        self.register_buffer("out_buf", tr.zeros((batch_size, n_ch, n_samples)))
-
-    def forward(self,
-                x: T,
-                mod_sig: T,
-                feedback: float = 0.0,
-                width: float = 1.0,
-                depth: float = 1.0,
-                mix: float = 1.0) -> T:
-        with tr.no_grad():
-            self.delay_buf.fill_(0)
-            self.out_buf.fill_(0)
-            return apply_flanger(x,
-                                 mod_sig,
-                                 self.delay_buf,
-                                 self.out_buf,
-                                 self.max_delay_samples,
-                                 feedback,
-                                 width,
-                                 depth,
-                                 mix)
 
 
 class RandomAudioChunkDataset(Dataset):
@@ -250,7 +121,7 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
             self,
             input_dir: str,
             n_samples: int,
-            fx_config_path: str,
+            fx_config: Dict[str, Any],
             sr: float = 44100,
             ext: str = "wav",
             num_examples_per_epoch: int = 10000,
@@ -259,10 +130,8 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
             use_debug_mode: bool = False,
     ) -> None:
         super().__init__(input_dir, n_samples, sr, ext, num_examples_per_epoch, silence_threshold_energy, n_retries)
+        self.fx_config = fx_config
         self.use_debug_mode = use_debug_mode
-        assert os.path.isfile(fx_config_path)
-        with open(fx_config_path, "r") as in_f:
-            self.fx_config = yaml.safe_load(in_f)
 
     def __getitem__(self, _) -> (T, T):
         audio_chunk = super().__getitem__(_)
@@ -275,7 +144,7 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         return audio_chunk, mod_sig
 
 
-class PhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
+class PedalboardPhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.max_file_n_samples = 0
@@ -286,7 +155,7 @@ class PhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
         log.info(f"max_file_n_samples = {self.max_file_n_samples}")
         dataset_min_rate_period = (self.max_file_n_samples - self.n_samples) / self.sr
         dataset_min_rate_hz = 1 / dataset_min_rate_period
-        log.info(f"dataset_min_rate_hz = {dataset_min_rate_hz}")
+        log.info(f"dataset_min_rate_hz = {dataset_min_rate_hz:.2f}")
         assert dataset_min_rate_hz <= self.fx_config["pedalboard_phaser"]["rate_hz"]["min"]
         self.spectrogram = Spectrogram(n_fft=512, power=1, center=True, normalized=False)
 
@@ -359,40 +228,3 @@ class PhaserGeneratorDataset(RandomAudioChunkAndModSigDataset):
                        feedback,
                        mix])
         return y, p
-
-
-if __name__ == "__main__":
-    audio, sr = torchaudio.load("../out/shoes_pad.wav")
-    audio = audio.unsqueeze(0)
-    # audio = audio[:, :, :1024]
-    audio = audio[:, :, :88200]
-    audio = audio.repeat(2, 1, 1)
-    # sr = 44100
-    # n_samples = 1024
-    n_samples = audio.size(-1)
-    n_ch = audio.size(1)
-    batch_size = audio.size(0)
-    # audio = tr.rand((batch_size, 2, n_samples))
-
-    mod_sig_0 = make_mod_signal(n_samples, sr, freq=2.0, phase=0.0, shape="cos")
-    mod_sig_1 = make_mod_signal(n_samples, sr, freq=0.1, phase=tr.pi, shape="cos")
-    mod_sig = tr.stack([mod_sig_0, mod_sig_1], dim=0)
-    wet = apply_flanger(audio, mod_sig, width=1.0, feedback=0.2, depth=1.0, mix=1.0, max_delay_ms=5.0, sr=sr)
-
-    spectrogram = Spectrogram(n_fft=512, power=1, center=True, normalized=False)
-    for idx, (w, m) in enumerate(zip(wet, mod_sig)):
-        torchaudio.save(f"../out/wet_{idx}.wav", w, sr)
-        plt.plot(m)
-        plt.show()
-        spec = tr.log(spectrogram(w[0]))
-        plt.imshow(spec, aspect="auto", interpolation="none")
-        plt.show()
-
-    # tremolo_ds = PhaserGeneratorDataset(
-    #     "../data/pads/test",
-    #     2 * 44100,
-    #     "../configs/ranges.json"
-    # )
-    #
-    # merp = tremolo_ds[0]
-    # ayy = 1

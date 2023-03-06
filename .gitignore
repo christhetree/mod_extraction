@@ -562,3 +562,5 @@ cython_debug/
 .idea/
 data/
 out/
+lightning_logs/
+wandb_logs/

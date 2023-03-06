@@ -13,4 +13,6 @@ dependencies:
     - matplotlib
     - pedalboard
     - pip-chill
-    - pytorch-lightning
+    - pytorch-lightning[extra]
+    - scipy
+    - wandb

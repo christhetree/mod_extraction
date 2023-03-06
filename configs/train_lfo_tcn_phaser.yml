@@ -1,0 +1,83 @@
+seed_everything: 42
+ckpt_path: null
+
+custom:
+  project_name: "lfo_tcn"
+  model_name: "testing"
+  dataset_name: "testing"
+  cpu_batch_size: 1
+
+trainer:
+  accelerator: gpu
+  benchmark: false
+  devices: [0]
+  max_epochs: 200
+
+data:
+  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
+  init_args:
+    batch_size: 256
+    num_workers: 8
+    train_dir: "../data/guitarset/train"
+    val_dir: "../data/guitarset/val"
+    train_num_examples_per_epoch: 20
+    val_num_examples_per_epoch: 10
+    n_samples: 88100
+    fx_config:
+      pedalboard_phaser:
+        rate_hz:
+          min: 0.25
+          max: 5.0
+        depth:
+          min: 0.5
+          max: 0.5
+        #    min: 0.2
+        #    max: 0.7
+        #    min: 0.2
+        #    max: 1.0
+        centre_frequency_hz:
+          min: 420.0
+          max: 460.0
+        #    min: 200.0
+        #    max: 800.0
+        #    min: 70.0
+        #    max: 18000.0
+        feedback:
+          min: 0.5
+          max: 0.5
+        #    min: 0.2
+        #    max: 0.7
+        #    min: 0.0
+        #    max: 0.7
+        mix:
+          min: 1.0
+          max: 1.0
+    sr: 44100
+    ext: "wav"
+    silence_threshold_energy: 1e-4
+    n_retries: 20
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model:
+      class_path: lfo_tcn.models.SpectralTCN
+      init_args:
+        n_samples: 88100
+        n_fft: 1024
+        hop_len: 256
+        kernel_size: 13
+        out_channels: [96, 96, 96, 96, 96]
+        dilations: [1, 2, 4, 8, 16]
+        n_fc_units: 128
+        latent_dim: 1
+        smooth_n_frames: 8
+        use_ln: true
+        use_res: true
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 3e-4
+    betas: [0.8, 0.99]
+#    betas: [0.9, 0.999]
