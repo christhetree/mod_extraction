@@ -2,30 +2,31 @@ seed_everything: 42
 ckpt_path: null
 
 custom:
-  project_name: "lfo_tcn"
-  model_name: "lfo_tcn"
-  dataset_name: "flanger_rate_cos"
-  cpu_batch_size: 3
+  project_name: lfo_tcn
+  model_name: lfo_tcn
+  dataset_name: fl_rate_cos_guitar
+  cpu_batch_size: 5
+#  use_wandb: false
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [0]
+  devices: [1]
   max_epochs: 200
 
 data:
   class_path: lfo_tcn.data_modules.FlangerCPUDataModule
   init_args:
-    batch_size: 256
-    num_workers: 8
-    use_debug_mode: false
-    train_dir: "../data/guitarset/train"
-    val_dir: "../data/guitarset/val"
-    train_num_examples_per_epoch: 200000
-    val_num_examples_per_epoch: 10000
+    batch_size: 2048
+    num_workers: 16
+    use_debug_mode: true
+    train_dir: ../data/guitarset/train
+    val_dir: ../data/guitarset/val
+    train_num_examples_per_epoch: 100000
+    val_num_examples_per_epoch: 20000
     n_samples: 88100
     sr: 44100
-    ext: "wav"
+    ext: wav
     silence_threshold_energy: 1e-4
     n_retries: 20
     fx_config:
@@ -37,11 +38,13 @@ data:
           min: 0.0
           max: 6.28318530718
         shapes:
-          - "cos"
-      #    - "tri"
-      #    - "saw"
-      #    - "rsaw"
-      #    - "sqr"
+          - cos
+#          - rect_cos
+#          - inv_rect_cos
+#          - tri
+#          - saw
+#          - rsaw
+#          - sqr
       flanger:
         max_delay_ms: 5.0
       #  max_delay_ms: 10.0
@@ -91,6 +94,6 @@ model:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 3e-4
+    lr: 1e-4
     betas: [0.8, 0.99]
 #    betas: [0.9, 0.999]

@@ -40,6 +40,7 @@ class LFOExtraction(pl.LightningModule):
         self.log(
             f"{prefix}/loss",
             loss,
+            on_step=True,  # TODO(cm)
             on_epoch=True,
             prog_bar=True,
             logger=True,

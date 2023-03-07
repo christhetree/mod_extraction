@@ -17,11 +17,15 @@ def make_mod_signal(n_samples: int,
     assert n_samples > 0
     assert 0.0 < freq < sr / 2.0
     assert -2 * tr.pi <= phase <= 2 * tr.pi
-    assert shape in {"cos", "tri", "saw", "rsaw", "sqr"}
+    assert shape in {"cos", "rect_cos", "inv_rect_cos", "tri", "saw", "rsaw", "sqr"}
     argument = tr.cumsum(2 * tr.pi * tr.full((n_samples,), freq) / sr, dim=0) + phase
 
     if shape == "cos":
         return (tr.cos(argument + tr.pi) + 1.0) / 2.0
+    if shape == "rect_cos":
+        return tr.abs(tr.cos(argument + tr.pi))
+    if shape == "inv_rect_cos":
+        return -tr.abs(tr.cos(argument + tr.pi)) + 1.0
     if shape == "sqr":
         cos = tr.cos(argument + tr.pi)
         sqr = tr.sign(cos)

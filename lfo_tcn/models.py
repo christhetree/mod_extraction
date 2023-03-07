@@ -66,7 +66,7 @@ class SpectralTCN(nn.Module):
         assert x.ndim == 3
 
         x = self.spectrogram(x).squeeze(1)
-        x = tr.clip(x, min=1e-8)
+        x = tr.clip(x, min=1e-7)  # TODO(cm)
         x = tr.log(x)
 
         x = self.tcn(x)

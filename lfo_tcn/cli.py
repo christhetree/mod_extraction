@@ -17,6 +17,7 @@ class CustomLightningCLI(LightningCLI):
     trainer_defaults = {
         "accelerator": "gpu",
         "callbacks": [
+            # TODO(cm): use text instead?
             LearningRateMonitor(logging_interval="step"),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
@@ -45,13 +46,19 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.model_name", default="testing")
         parser.add_argument("custom.dataset_name", default="testing")
         parser.add_argument("custom.cpu_batch_size", default=1)
+        parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
 
     def before_instantiate_classes(self) -> None:
         devices = self.config.fit.trainer.devices
-        if isinstance(devices, int) and devices < 2:
-            self.config.fit.trainer.strategy = None
-        elif isinstance(devices, list) and len(devices) < 2:
+        if isinstance(devices, list):
+            cuda_flag = f'{",".join([str(d) for d in devices])}'
+            log.info(f"setting CUDA_VISIBLE_DEVICES = {cuda_flag}")
+            os.environ["CUDA_VISIBLE_DEVICES"] = f"{cuda_flag}"
+            self.config.fit.trainer.devices = len(devices)
+
+        if self.config.fit.trainer.devices < 2:
+            log.info("Disabling strategy")
             self.config.fit.trainer.strategy = None
 
         if not torch.cuda.is_available():
@@ -69,17 +76,21 @@ class CustomLightningCLI(LightningCLI):
                 log.info(f"Setting checkpoint name to: {cb.filename}")
 
         if torch.cuda.is_available():
-            wandb_logger = WandbLogger(save_dir="wandb_logs",
-                                       project=self.config.fit.custom.project_name,
-                                       name=f"{self.config.fit.custom.model_name}__"
-                                            f"{self.config.fit.custom.dataset_name}")
-            self.trainer.loggers.append(wandb_logger)
+            if self.config.fit.custom.use_wandb:
+                wandb_logger = WandbLogger(save_dir="wandb_logs",
+                                           project=self.config.fit.custom.project_name,
+                                           name=f"{self.config.fit.custom.model_name}__"
+                                                f"{self.config.fit.custom.dataset_name}")
+                self.trainer.loggers.append(wandb_logger)
+            else:
+                log.info("wandb is disabled")
         else:
             log.info("================ Running on CPU ================ ")
 
         log.info(f"================ {self.config.fit.custom.project_name} "
                  f"{self.config.fit.custom.model_name} "
                  f"{self.config.fit.custom.dataset_name} ================")
+        log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
 
 
 def run_custom_cli(config_path: str) -> None:
