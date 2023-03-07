@@ -8,6 +8,8 @@ from pytorch_lightning.cli import LightningCLI, LightningArgumentParser
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
 
+from lfo_tcn.callbacks import LogModSigCallback
+
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
@@ -19,6 +21,7 @@ class CustomLightningCLI(LightningCLI):
         "callbacks": [
             # TODO(cm): use text instead?
             LearningRateMonitor(logging_interval="step"),
+            LogModSigCallback(n_examples=4),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
@@ -45,9 +48,14 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.project_name", default="testing")
         parser.add_argument("custom.model_name", default="testing")
         parser.add_argument("custom.dataset_name", default="testing")
-        parser.add_argument("custom.cpu_batch_size", default=1)
+        parser.add_argument("custom.cpu_model_name", default="testing")
+        parser.add_argument("custom.cpu_dataset_name", default="testing")
+        parser.add_argument("custom.cpu_batch_size", default=5)
+        parser.add_argument("custom.cpu_train_num_examples_per_epoch", default=15)
+        parser.add_argument("custom.cpu_val_num_examples_per_epoch", default=10)
         parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
+        parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 
     def before_instantiate_classes(self) -> None:
         devices = self.config.fit.trainer.devices
@@ -62,11 +70,17 @@ class CustomLightningCLI(LightningCLI):
             self.config.fit.trainer.strategy = None
 
         if not torch.cuda.is_available():
+            self.config.fit.custom.model_name = self.config.fit.custom.cpu_model_name
+            self.config.fit.custom.dataset_name = self.config.fit.custom.cpu_dataset_name
             self.config.fit.trainer.accelerator = None
             self.config.fit.trainer.devices = None
             self.config.fit.trainer.strategy = None
             self.config.fit.data.init_args.batch_size = self.config.fit.custom.cpu_batch_size
             self.config.fit.data.init_args.num_workers = 0
+            self.config.fit.data.init_args.train_num_examples_per_epoch = \
+                self.config.fit.custom.cpu_train_num_examples_per_epoch
+            self.config.fit.data.init_args.val_num_examples_per_epoch = \
+                self.config.fit.custom.cpu_val_num_examples_per_epoch
 
     def before_fit(self) -> None:
         for cb in self.trainer.callbacks:

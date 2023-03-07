@@ -12,7 +12,7 @@ from torch import Tensor as T
 from torch.utils.data import Dataset
 
 from lfo_tcn.fx import make_mod_signal
-from lfo_tcn.util import display_spectrogram
+from lfo_tcn.util import plot_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -155,10 +155,10 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         log.info(f"max_file_n_samples = {self.max_file_n_samples}")
         dataset_min_rate_period = (self.max_file_n_samples - self.n_samples) / self.sr
         dataset_min_rate_hz = 1 / dataset_min_rate_period
-        log.info(f"dataset_min_rate_hz = {dataset_min_rate_hz:.2f}")
+        log.info(f"dataset_min_rate_hz = {dataset_min_rate_hz:.4f}")
         assert dataset_min_rate_hz <= self.fx_config["pedalboard_phaser"]["rate_hz"]["min"]
 
-    def __getitem__(self, idx: int) -> (T, T, T):
+    def __getitem__(self, idx: int) -> (T, T, T, Dict[str, float]):
         rate_hz = self.sample_log_uniform(
             self.fx_config["pedalboard_phaser"]["rate_hz"]["min"],
             self.fx_config["pedalboard_phaser"]["rate_hz"]["max"],
@@ -182,10 +182,10 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
             ch_idx = self.randint(0, audio_chunk.size(0))
             audio_chunk = audio_chunk[ch_idx, :].view(1, -1)
 
-        proc_audio, _ = self.apply_pedalboard_phaser(audio_chunk,
-                                                     self.sr,
-                                                     rate_hz,
-                                                     self.fx_config["pedalboard_phaser"])
+        proc_audio, fx_params = self.apply_pedalboard_phaser(audio_chunk,
+                                                             self.sr,
+                                                             rate_hz,
+                                                             self.fx_config["pedalboard_phaser"])
         proc_mod_sig = make_mod_signal(proc_n_samples, self.sr, rate_hz, tr.pi / 2, "cos")
 
         start_idx = self.randint(0, proc_n_samples - self.n_samples + 1)
@@ -197,16 +197,16 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
             plt.plot(mod_sig.squeeze(0))
             plt.title("mod_sig")
             plt.show()
-            display_spectrogram(dry, save_audio=True, name="phaser_dry", idx=idx)
-            display_spectrogram(wet, save_audio=True, name="phaser_wet", idx=idx)
+            plot_spectrogram(dry, save_name=f"phaser_dry_{idx}", sr=self.sr)
+            plot_spectrogram(wet, save_name=f"phaser_wet_{idx}", sr=self.sr)
 
-        return dry, wet, mod_sig
+        return dry, wet, mod_sig, fx_params
 
     @staticmethod
     def apply_pedalboard_phaser(x: T,
                                 sr: float,
                                 rate_hz: float,
-                                ranges: Dict[str, Dict[str, float]]) -> (T, T):
+                                ranges: Dict[str, Dict[str, float]]) -> (T, Dict[str, float]):
         board = Pedalboard()
         depth = RandomAudioChunkDataset.sample_uniform(ranges["depth"]["min"], ranges["depth"]["max"])
         centre_frequency_hz = RandomAudioChunkDataset.sample_log_uniform(ranges["centre_frequency_hz"]["min"],
@@ -219,9 +219,11 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
                             feedback=feedback,
                             mix=mix))
         y = tr.from_numpy(board(x.numpy(), sr))
-        p = tr.tensor([rate_hz,
-                       depth,
-                       centre_frequency_hz,
-                       feedback,
-                       mix])
-        return y, p
+        fx_params = {
+            "depth": depth,
+            "centre_frequency_hz": centre_frequency_hz,
+            "feedback": feedback,
+            "mix": mix,
+            "rate_hz": rate_hz,
+        }
+        return y, fx_params

@@ -6,6 +6,8 @@ custom:
   model_name: lfo_tcn
   dataset_name: fl_rate_cos_guitar
   cpu_batch_size: 5
+  cpu_train_num_examples_per_epoch: 15
+  cpu_val_num_examples_per_epoch: 10
 #  use_wandb: false
 
 trainer:
@@ -19,7 +21,7 @@ data:
   init_args:
     batch_size: 2048
     num_workers: 16
-    use_debug_mode: true
+    use_debug_mode: false
     train_dir: ../data/guitarset/train
     val_dir: ../data/guitarset/val
     train_num_examples_per_epoch: 100000

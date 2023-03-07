@@ -6,18 +6,20 @@ custom:
   model_name: lfo_tcn
   dataset_name: ph_all2_guitar
   cpu_batch_size: 5
+  cpu_train_num_examples_per_epoch: 15
+  cpu_val_num_examples_per_epoch: 10
 #  use_wandb: false
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [1]
+  devices: [0]
   max_epochs: 200
 
 data:
   class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
   init_args:
-    batch_size: 256
+    batch_size: 512
     num_workers: 16
     use_debug_mode: false
     train_dir: ../data/guitarset/train

@@ -1,15 +1,16 @@
 import logging
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 import pytorch_lightning as pl
+import torch as tr
 from matplotlib import pyplot as plt
 from torch import Tensor as T
 from torch.utils.data import DataLoader
 
 from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset
 from lfo_tcn.fx import FlangerModule
-from lfo_tcn.util import display_spectrogram
+from lfo_tcn.util import plot_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -133,7 +134,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 self.use_debug_mode,
             )
 
-    def on_before_batch_transfer(self, batch: List[T], dataloader_idx: int) -> List[T]:
+    def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):
         dry, mod_sig = batch
         feedback = RandomAudioChunkDataset.sample_uniform(
             self.fx_config["flanger"]["feedback"]["min"],
@@ -151,6 +152,15 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
             self.fx_config["flanger"]["mix"]["min"],
             self.fx_config["flanger"]["mix"]["max"]
         )
+        fx_params = {
+            "depth": depth,
+            "feedback": feedback,
+            "max_delay_ms": self.fx_config["flanger"]["max_delay_ms"],
+            "mix": mix,
+            "width": width,
+        }
+        fx_params = {k: tr.tensor(v).repeat(self.batch_size) for k, v in fx_params.items()}
+
         wet = self.flanger(dry, mod_sig, feedback, width, depth, mix)
 
         if self.use_debug_mode:
@@ -158,7 +168,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 plt.plot(m.squeeze(0))
                 plt.title("mod_sig")
                 plt.show()
-                display_spectrogram(d, save_audio=True, name="flanger_dry", idx=idx)
-                display_spectrogram(w, save_audio=True, name="flanger_wet", idx=idx)
+                plot_spectrogram(d, save_name=f"flanger_dry_{idx}", sr=self.sr)
+                plot_spectrogram(w, save_name=f"flanger_wet_{idx}", sr=self.sr)
 
-        return [dry, wet, mod_sig]
+        return dry, wet, mod_sig, fx_params
