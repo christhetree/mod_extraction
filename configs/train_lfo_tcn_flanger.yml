@@ -4,7 +4,8 @@ ckpt_path: null
 custom:
   project_name: lfo_tcn
   model_name: lfo_tcn
-  dataset_name: fl_rate_cos_guitar
+  dataset_name: fl_cos_egfx_clean
+#  dataset_name: fl_all2_egfx_clean
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
@@ -19,22 +20,26 @@ trainer:
 data:
   class_path: lfo_tcn.data_modules.FlangerCPUDataModule
   init_args:
-    batch_size: 2048
+    batch_size: 1024
     num_workers: 16
     use_debug_mode: false
-    train_dir: ../data/guitarset/train
-    val_dir: ../data/guitarset/val
+    train_dir: ../data/egfx_clean/train
+    val_dir: ../data/egfx_clean/val
     train_num_examples_per_epoch: 100000
     val_num_examples_per_epoch: 20000
-    n_samples: 88100
-    sr: 44100
+#    n_samples: 88100
+    n_samples: 96000
+#    sr: 44100
+    sr: 48000
     ext: wav
-    silence_threshold_energy: 1e-4
-    n_retries: 20
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 1e-6
+    n_retries: 10
     fx_config:
       mod_sig:
         rate_hz:
-          min: 0.25
+#          min: 0.25
+          min: 0.35
           max: 5.0
         phase:
           min: 0.0

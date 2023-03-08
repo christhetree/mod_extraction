@@ -18,6 +18,9 @@ def make_mod_signal(n_samples: int,
     assert 0.0 < freq < sr / 2.0
     assert -2 * tr.pi <= phase <= 2 * tr.pi
     assert shape in {"cos", "rect_cos", "inv_rect_cos", "tri", "saw", "rsaw", "sqr"}
+    if shape in {"rect_cos", "inv_rect_cos"}:
+        # Rectified sine waves have double the frequency
+        freq /= 2.0
     argument = tr.cumsum(2 * tr.pi * tr.full((n_samples,), freq) / sr, dim=0) + phase
 
     if shape == "cos":

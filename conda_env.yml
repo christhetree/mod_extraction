@@ -8,9 +8,11 @@ dependencies:
   - pip
   - pytorch
   - torchaudio
+  - torchvision
   - cudatoolkit=11.7
   - pip:
     - matplotlib
+    - nvitop
     - pedalboard
     - pip-chill
     - pytorch-lightning[extra]

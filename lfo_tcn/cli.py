@@ -29,7 +29,7 @@ class CustomLightningCLI(LightningCLI):
                 mode='min',
                 save_last=True,
                 save_top_k=1,
-                verbose=True
+                verbose=False,
             ),
         ],
         "logger": {
@@ -55,6 +55,7 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.cpu_val_num_examples_per_epoch", default=10)
         parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
+        parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")
         parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 
     def before_instantiate_classes(self) -> None:

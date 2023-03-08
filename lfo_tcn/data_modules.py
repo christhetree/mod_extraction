@@ -28,7 +28,8 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                  fx_config: Dict[str, Any],
                  sr: float = 44100,
                  ext: str = "wav",
-                 silence_threshold_energy: float = 1e-4,
+                 silence_fraction_allowed: float = 0.2,
+                 silence_threshold_energy: float = 1e-6,
                  n_retries: int = 20,
                  num_workers: int = 0,
                  use_debug_mode: bool = False) -> None:
@@ -46,6 +47,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
         self.fx_config = fx_config
         self.sr = sr
         self.ext = ext
+        self.silence_fraction_allowed = silence_fraction_allowed
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
         self.num_workers = num_workers
@@ -62,6 +64,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                 self.sr,
                 self.ext,
                 self.train_num_examples_per_epoch,
+                self.silence_fraction_allowed,
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
@@ -74,6 +77,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                 self.sr,
                 self.ext,
                 self.val_num_examples_per_epoch,
+                self.silence_fraction_allowed,
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
@@ -117,6 +121,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 self.sr,
                 self.ext,
                 self.train_num_examples_per_epoch,
+                self.silence_fraction_allowed,
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
@@ -129,6 +134,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 self.sr,
                 self.ext,
                 self.val_num_examples_per_epoch,
+                self.silence_fraction_allowed,
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
@@ -166,9 +172,9 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
         if self.use_debug_mode:
             for idx, (d, w, m) in enumerate(zip(dry, wet, mod_sig)):
                 plt.plot(m.squeeze(0))
-                plt.title("mod_sig")
+                plt.title(f"flanger_mod_sig_{idx}")
                 plt.show()
-                plot_spectrogram(d, save_name=f"flanger_dry_{idx}", sr=self.sr)
-                plot_spectrogram(w, save_name=f"flanger_wet_{idx}", sr=self.sr)
+                plot_spectrogram(d, title=f"flanger_dry_{idx}", save_name=f"flanger_dry_{idx}", sr=self.sr)
+                plot_spectrogram(w, title=f"flanger_wet_{idx}", save_name=f"flanger_wet_{idx}", sr=self.sr)
 
         return dry, wet, mod_sig, fx_params

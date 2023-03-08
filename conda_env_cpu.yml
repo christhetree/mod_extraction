@@ -11,4 +11,5 @@ dependencies:
     - pytorch-lightning[extra]
     - scipy
     - torchaudio
+    - torchvision
     - wandb
