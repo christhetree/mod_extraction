@@ -82,6 +82,9 @@ model:
         smooth_n_frames: 8
         use_ln: true
         use_res: true
+    loss_dict:
+      l1: 1.0
+      mse: 0.0
 
 optimizer:
   class_path: torch.optim.AdamW

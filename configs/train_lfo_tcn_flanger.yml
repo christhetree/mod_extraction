@@ -4,7 +4,7 @@ ckpt_path: null
 custom:
   project_name: lfo_tcn
   model_name: lfo_tcn
-  dataset_name: fl_cos_egfx_clean
+  dataset_name: fl_4shapes_egfx_clean
 #  dataset_name: fl_all2_egfx_clean
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
@@ -20,7 +20,7 @@ trainer:
 data:
   class_path: lfo_tcn.data_modules.FlangerCPUDataModule
   init_args:
-    batch_size: 1024
+    batch_size: 2048
     num_workers: 16
     use_debug_mode: false
     train_dir: ../data/egfx_clean/train
@@ -46,10 +46,10 @@ data:
           max: 6.28318530718
         shapes:
           - cos
-#          - rect_cos
+          - rect_cos
 #          - inv_rect_cos
-#          - tri
-#          - saw
+          - tri
+          - saw
 #          - rsaw
 #          - sqr
       flanger:
@@ -97,6 +97,9 @@ model:
         smooth_n_frames: 8
         use_ln: true
         use_res: true
+    loss_dict:
+      l1: 1.0
+      mse: 0.0
 
 optimizer:
   class_path: torch.optim.AdamW

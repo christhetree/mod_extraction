@@ -6,12 +6,13 @@ import shutil
 from typing import Optional
 
 import PIL
+import auraloss.time
 import torch as tr
 import torchaudio
 from matplotlib import pyplot as plt
 from matplotlib.axes import Subplot
 from matplotlib.figure import Figure
-from torch import Tensor as T
+from torch import Tensor as T, nn
 from torchaudio.transforms import Spectrogram
 from torchvision.transforms import ToTensor
 
@@ -20,6 +21,19 @@ from lfo_tcn.paths import OUT_DIR
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
+
+
+def get_loss_func_by_name(name: str) -> nn.Module:
+    if name == "l1":
+        return nn.L1Loss()
+    elif name == "mse":
+        return nn.MSELoss()
+    elif name == "esr":
+        return auraloss.time.ESRLoss()
+    elif name == "dc":
+        return auraloss.time.DCLoss()
+    else:
+        raise KeyError
 
 
 def fig2img(fig: Figure, format: str = "png", dpi: int = 120) -> T:

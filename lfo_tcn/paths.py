@@ -9,6 +9,7 @@ ROOT_DIR = os.path.abspath(os.path.join(__file__, '../../'))
 
 CONFIGS_DIR = os.path.join(ROOT_DIR, "configs")
 DATA_DIR = os.path.join(ROOT_DIR, "data")
+MODELS_DIR = os.path.join(ROOT_DIR, "models")
 OUT_DIR = os.path.join(ROOT_DIR, "out")
 
 assert os.path.exists(OUT_DIR)

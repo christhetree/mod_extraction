@@ -1,4 +1,5 @@
 aiohttp==3.8.4
+auraloss==0.3.0
 docstring-parser==0.15
 hydra-core==1.3.2
 jsonargparse==4.20.0
