@@ -1,18 +1,15 @@
 import io
 import logging
 import os
-import random
-import shutil
 from typing import Optional
 
 import PIL
-import auraloss.time
 import torch as tr
 import torchaudio
 from matplotlib import pyplot as plt
 from matplotlib.axes import Subplot
 from matplotlib.figure import Figure
-from torch import Tensor as T, nn
+from torch import Tensor as T
 from torchaudio.transforms import Spectrogram
 from torchvision.transforms import ToTensor
 
@@ -21,19 +18,6 @@ from lfo_tcn.paths import OUT_DIR
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
-
-
-def get_loss_func_by_name(name: str) -> nn.Module:
-    if name == "l1":
-        return nn.L1Loss()
-    elif name == "mse":
-        return nn.MSELoss()
-    elif name == "esr":
-        return auraloss.time.ESRLoss()
-    elif name == "dc":
-        return auraloss.time.DCLoss()
-    else:
-        raise KeyError
 
 
 def fig2img(fig: Figure, format: str = "png", dpi: int = 120) -> T:
@@ -88,43 +72,3 @@ def plot_mod_sig(ax: Subplot,
     ax.plot(mod_sig_hat)
     if title is not None:
         ax.set_title(title)
-
-
-def split_egfx(root_dir: str, val_split: float = 0.3) -> None:
-    train_names = None
-    val_names = None
-    train_dir = os.path.join(root_dir, "train")
-    val_dir = os.path.join(root_dir, "val")
-    os.makedirs(train_dir)
-    os.makedirs(val_dir)
-    for dir_name in os.listdir(root_dir):
-        dir = os.path.join(root_dir, dir_name)
-        if os.path.isdir(dir) and dir_name not in {"train", "val"}:
-            if val_names is None:
-                names = os.listdir(dir)
-                names = [n for n in names if n.endswith(".wav") and not n.startswith(".")]
-                val_names = random.sample(names, int(val_split * len(names)))
-                for n in val_names:
-                    names.remove(n)
-                train_names = names
-
-            train_dest_dir = os.path.join(train_dir, dir_name)
-            os.makedirs(train_dest_dir, exist_ok=True)
-            for n in train_names:
-                file_path = os.path.join(dir, n)
-                assert os.path.isfile(file_path)
-                dest_path = os.path.join(train_dest_dir, n)
-                shutil.copyfile(file_path, dest_path)
-
-            val_dest_dir = os.path.join(val_dir, dir_name)
-            os.makedirs(val_dest_dir, exist_ok=True)
-            for n in val_names:
-                file_path = os.path.join(dir, n)
-                assert os.path.isfile(file_path)
-                dest_path = os.path.join(val_dest_dir, n)
-                shutil.copyfile(file_path, dest_path)
-
-
-if __name__ == "__main__":
-    from lfo_tcn.paths import DATA_DIR
-    split_egfx(os.path.join(DATA_DIR, "egfx_clean"))

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor as T
 from torch import nn
 
-from lfo_tcn.util import get_loss_func_by_name
+from lfo_tcn.losses import get_loss_func_by_name
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -24,12 +24,13 @@ class LFOExtraction(pl.LightningModule):
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
+        log.info(f"\n{self.hparams}")
         self.model = model
         self.sr = sr
         if loss_dict is None:
             loss_dict = self.default_loss_dict
         self.loss_dict = loss_dict
-        self.loss_funcs = [get_loss_func_by_name(name) for name, _ in loss_dict.items()]
+        self.loss_funcs = nn.ParameterList([get_loss_func_by_name(name) for name, _ in loss_dict.items()])
 
     def forward(self, x: T) -> T:
         return self.model(x)
@@ -46,7 +47,7 @@ class LFOExtraction(pl.LightningModule):
 
         # TODO(cm): refactor into separate method
         loss_values = [loss_func(mod_sig_hat, mod_sig) for loss_func in self.loss_funcs]
-        loss = tr.tensor(0.0)
+        loss = None
         for (name, weighting), loss_value in zip(self.loss_dict.items(), loss_values):
             self.log(
                 f"{prefix}/{name}",
@@ -58,7 +59,10 @@ class LFOExtraction(pl.LightningModule):
                 sync_dist=True,
             )
             if weighting > 0:
-                loss += weighting * loss_value
+                if loss is None:
+                    loss = weighting * loss_value
+                else:
+                    loss += weighting * loss_value
         self.log(
             f"{prefix}/loss",
             loss,
@@ -74,6 +78,7 @@ class LFOExtraction(pl.LightningModule):
             "mod_sig": mod_sig.detach().float().cpu(),
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
         }
+
         fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
         return loss, data_dict, fx_params
 
@@ -93,10 +98,13 @@ class LFOEffectModeling(pl.LightningModule):
                  lfo_model: Optional[nn.Module] = None,
                  lfo_model_weights_path: Optional[str] = None,
                  freeze_lfo_model: bool = False,
+                 sr: float = 44100,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__()
+        self.sr = sr
         self.use_gt_mod_sig = lfo_model is None
         self.save_hyperparameters(ignore=["effect_model", "lfo_model"])
+        log.info(f"\n{self.hparams}")
         self.effect_model = effect_model
 
         if lfo_model is not None:
@@ -109,14 +117,17 @@ class LFOEffectModeling(pl.LightningModule):
                 lfo_model.eval()
                 for param in lfo_model.parameters():
                     param.requires_grad = False
+        else:
+            log.info("Using ground truth mod_sig")
+
         self.lfo_model = lfo_model
         if loss_dict is None:
             loss_dict = self.default_loss_dict
         self.loss_dict = loss_dict
-        self.loss_funcs = [get_loss_func_by_name(name) for name, _ in loss_dict.items()]
+        self.loss_funcs = nn.ParameterList([get_loss_func_by_name(name) for name, _ in loss_dict.items()])
 
     def forward(self, dry: T, mod_sig: T = None) -> T:
-        return self.model(dry, mod_sig)
+        return self.effect_model(dry, mod_sig)
 
     def common_step(self,
                     batch: (T, T, Optional[T], Optional[Dict[str, T]]),
@@ -138,7 +149,7 @@ class LFOEffectModeling(pl.LightningModule):
         wet_hat = self.forward(dry, mod_sig_hat_sr)
         assert dry.shape == wet.shape == wet_hat.shape
 
-        if mod_sig is not None and mod_sig_hat.size(-1) != mod_sig_hat.size(-1):
+        if mod_sig is not None and mod_sig.size(-1) != mod_sig_hat.size(-1):
             mod_sig = F.interpolate(mod_sig.unsqueeze(1),
                                     mod_sig_hat.size(-1),
                                     mode="linear",
@@ -148,7 +159,8 @@ class LFOEffectModeling(pl.LightningModule):
 
         # TODO(cm): refactor into separate method
         loss_values = [loss_func(wet_hat, wet) for loss_func in self.loss_funcs]
-        loss = tr.tensor(0.0)
+
+        loss = None
         for (name, weighting), loss_value in zip(self.loss_dict.items(), loss_values):
             self.log(
                 f"{prefix}/{name}",
@@ -160,7 +172,10 @@ class LFOEffectModeling(pl.LightningModule):
                 sync_dist=True,
             )
             if weighting > 0:
-                loss += weighting * loss_value
+                if loss is None:
+                    loss = weighting * loss_value
+                else:
+                    loss += weighting * loss_value
         self.log(
             f"{prefix}/loss",
             loss,
@@ -173,7 +188,7 @@ class LFOEffectModeling(pl.LightningModule):
         data_dict = {
             "dry": dry.detach().float().cpu(),
             "wet": wet.detach().float().cpu(),
-            "wet_hat": wet.detach().float().cpu(),
+            "wet_hat": wet_hat.detach().float().cpu(),
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
         }
         if mod_sig is not None:

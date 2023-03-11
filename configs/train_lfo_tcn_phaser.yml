@@ -1,11 +1,12 @@
 seed_everything: 42
-ckpt_path: null
+#ckpt_path: ../models/lfo_tcn__ph_rate_egfx_clean__epoch_65_step_12870.ckpt
+ckpt_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.ckpt
 
 custom:
   project_name: lfo_tcn
   model_name: lfo_tcn
-  dataset_name: ph_rate_egfx_clean
-#  dataset_name: ph_all2_egfx_clean
+#  dataset_name: ph_rate_idmt_4
+  dataset_name: ph_all2_egfx_clean
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
@@ -23,8 +24,12 @@ data:
     batch_size: 512
     num_workers: 16
     use_debug_mode: false
-    train_dir: ../data/egfx_clean/train
-    val_dir: ../data/egfx_clean/val
+#    train_dir: ../data/egfx_clean/train
+#    val_dir: ../data/egfx_clean/val
+    train_dir: ../data/egfx_phaser/train
+    val_dir: ../data/egfx_phaser/val
+#    train_dir: ../data/idmt_4/train
+#    val_dir: ../data/idmt_4/val
     train_num_examples_per_epoch: 100000
     val_num_examples_per_epoch: 20000
 #    n_samples: 88100
@@ -33,13 +38,16 @@ data:
     sr: 48000
     ext: wav
     silence_fraction_allowed: 0.1
+#    silence_threshold_energy: 1e-4
     silence_threshold_energy: 1e-6
     n_retries: 10
+    check_dataset: true
     fx_config:
       pedalboard_phaser:
         rate_hz:
 #          min: 0.25
-          min: 0.35
+#          min: 0.35
+          min: 4.0
           max: 5.0
         depth:
           min: 0.5
@@ -63,25 +71,15 @@ data:
 #            min: 0.0
 #            max: 0.7
         mix:
-          min: 1.0
-          max: 1.0
+#          min: 1.0
+#          max: 1.0
+          min: 0.0
+          max: 0.0
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
-    model:
-      class_path: lfo_tcn.models.SpectralTCN
-      init_args:
-        n_fft: 1024
-        hop_len: 256
-        kernel_size: 13
-        out_channels: [96, 96, 96, 96, 96]
-        dilations: [1, 2, 4, 8, 16]
-        n_fc_units: 128
-        latent_dim: 1
-        smooth_n_frames: 8
-        use_ln: true
-        use_res: true
+    model: ../configs/models/spectral_tcn.yaml
     loss_dict:
       l1: 1.0
       mse: 0.0

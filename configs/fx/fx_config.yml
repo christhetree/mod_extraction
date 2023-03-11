@@ -15,6 +15,7 @@ mod_sig:
 pedalboard_phaser:
   rate_hz:
     min: 0.25
+#    min: 0.35
     max: 5.0
   depth:
     min: 0.5

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset
 from lfo_tcn.fx import FlangerModule
-from lfo_tcn.util import plot_spectrogram
+from lfo_tcn.plotting import plot_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                  silence_fraction_allowed: float = 0.2,
                  silence_threshold_energy: float = 1e-6,
                  n_retries: int = 20,
+                 check_dataset: bool = True,
                  num_workers: int = 0,
                  use_debug_mode: bool = False) -> None:
         super().__init__()
@@ -50,6 +51,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
         self.silence_fraction_allowed = silence_fraction_allowed
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
+        self.check_dataset = check_dataset
         self.num_workers = num_workers
         self.use_debug_mode = use_debug_mode
         self.train_dataset = None
@@ -68,6 +70,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
+                self.check_dataset,
             )
         if stage == "validate" or "fit":
             self.val_dataset = PedalboardPhaserDataset(
@@ -81,6 +84,7 @@ class PedalboardPhaserDataModule(pl.LightningDataModule):
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
+                self.check_dataset,
             )
 
     def train_dataloader(self) -> DataLoader:
@@ -125,6 +129,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
+                self.check_dataset,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkAndModSigDataset(
@@ -138,6 +143,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 self.silence_threshold_energy,
                 self.n_retries,
                 self.use_debug_mode,
+                self.check_dataset,
             )
 
     def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):

@@ -1,0 +1,5 @@
+class_path: torch.optim.AdamW
+init_args:
+  lr: 1e-4
+  betas: [0.8, 0.99]
+#  betas: [0.9, 0.999]

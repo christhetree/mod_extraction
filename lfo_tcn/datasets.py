@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from lfo_tcn.fx import make_mod_signal
-from lfo_tcn.util import plot_spectrogram
+from lfo_tcn.plotting import plot_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class RandomAudioChunkDataset(Dataset):
             silence_fraction_allowed: float = 0.2,
             silence_threshold_energy: float = 1e-6,  # Around -60 dBFS
             n_retries: int = 20,
+            check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
     ) -> None:
         super().__init__()
@@ -41,6 +42,7 @@ class RandomAudioChunkDataset(Dataset):
         self.silence_fraction_allowed = silence_fraction_allowed
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
+        self.check_dataset = check_dataset
         self.min_suitable_files_fraction = min_suitable_files_fraction
         self.max_n_consecutive_silent_samples = int(silence_fraction_allowed * n_samples)
 
@@ -71,8 +73,9 @@ class RandomAudioChunkDataset(Dataset):
         assert len(filtered_input_paths) > 0
 
         self.input_paths = filtered_input_paths
-        assert self.check_dataset_for_suitable_files(self.n_samples, self.min_suitable_files_fraction), \
-            "Could not find a suitable non-silent audio chunk in the dataset"
+        if check_dataset:
+            assert self.check_dataset_for_suitable_files(self.n_samples, self.min_suitable_files_fraction), \
+                "Could not find a suitable non-silent audio chunk in the dataset"
 
     def check_dataset_for_suitable_files(self, n_samples: int, min_suitable_files_fraction: float) -> bool:
         min_n_suitable_files = int(min_suitable_files_fraction * len(self.input_paths))
@@ -175,6 +178,8 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
             silence_threshold_energy: float = 1e-6,
             n_retries: int = 20,
             use_debug_mode: bool = False,
+            check_dataset: bool = True,
+            min_suitable_files_fraction: int = 0.5,
     ) -> None:
         super().__init__(input_dir,
                          n_samples,
@@ -183,7 +188,9 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                          num_examples_per_epoch,
                          silence_fraction_allowed,
                          silence_threshold_energy,
-                         n_retries)
+                         n_retries,
+                         check_dataset,
+                         min_suitable_files_fraction)
         self.fx_config = fx_config
         self.use_debug_mode = use_debug_mode
 
@@ -219,9 +226,11 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         min_rate_n_samples = int((self.sr / phaser_min_rate_hz) + 0.5)
         max_proc_n_samples = self.n_samples + min_rate_n_samples
         log.debug(f"max_proc_n_samples = {max_proc_n_samples}")
-        assert self.check_dataset_for_suitable_files(max_proc_n_samples, 0.1), \
-            "Could not find a suitable non-silent audio chunk in the dataset to support the lowest phaser rate_hz"
-        log.info(f">10% of the dataset can handle the max_proc_n_samples required for the lowest phaser rate_hz")
+
+        if self.check_dataset:
+            assert self.check_dataset_for_suitable_files(max_proc_n_samples, 0.1), \
+                "Could not find a suitable non-silent audio chunk in the dataset to support the lowest phaser rate_hz"
+            log.info(f">10% of the dataset can handle the max_proc_n_samples required for the lowest phaser rate_hz")
 
     def __getitem__(self, idx: int) -> (T, T, T, Dict[str, float]):
         rate_hz = self.sample_log_uniform(

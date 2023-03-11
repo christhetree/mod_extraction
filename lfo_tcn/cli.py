@@ -78,10 +78,13 @@ class CustomLightningCLI(LightningCLI):
             self.config.fit.trainer.strategy = None
             self.config.fit.data.init_args.batch_size = self.config.fit.custom.cpu_batch_size
             self.config.fit.data.init_args.num_workers = 0
+            self.config.fit.data.init_args.check_dataset = False
             self.config.fit.data.init_args.train_num_examples_per_epoch = \
                 self.config.fit.custom.cpu_train_num_examples_per_epoch
             self.config.fit.data.init_args.val_num_examples_per_epoch = \
                 self.config.fit.custom.cpu_val_num_examples_per_epoch
+        else:
+            assert not self.config.fit.data.init_args.use_debug_mode
 
     def before_fit(self) -> None:
         for cb in self.trainer.callbacks:

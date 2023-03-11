@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 from torch import Tensor as T
 
-from lfo_tcn.util import plot_spectrogram, plot_mod_sig, fig2img
+from lfo_tcn.plotting import plot_spectrogram, plot_mod_sig, fig2img
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
