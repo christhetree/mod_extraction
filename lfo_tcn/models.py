@@ -1,10 +1,9 @@
 import logging
 import os
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import torch as tr
-import torch.nn.functional as F
-from torch import Tensor
+from torch import Tensor as T
 from torch import nn
 from torchaudio.transforms import Spectrogram
 
@@ -62,7 +61,7 @@ class SpectralTCN(nn.Module):
         log.info(f"Receptive field = {self.receptive_field} samples")
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: T) -> T:
         assert x.ndim == 3
 
         x = self.spectrogram(x).squeeze(1)
@@ -79,7 +78,21 @@ class SpectralTCN(nn.Module):
         return x
 
 
-class LSTMEffectModel(nn.Module):
+class HiddenStateModel(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hidden: Optional[Tuple[T, ...]] = None
+
+    def detach_hidden(self) -> None:
+        if self.hidden is not None:
+            # TODO: check whether clone is required or not
+            self.hidden = tuple((h.detach().clone() for h in self.hidden))
+
+    def clear_hidden(self) -> None:
+        self.hidden = None
+
+
+class LSTMEffectModel(HiddenStateModel):
     def __init__(self,
                  in_ch: int = 1,
                  out_ch: int = 1,
@@ -93,23 +106,22 @@ class LSTMEffectModel(nn.Module):
         self.lstm = nn.LSTM(in_ch + latent_dim, n_hidden, batch_first=True)
         self.fc = nn.Linear(n_hidden, out_ch)
 
-    def forward(self, x: Tensor, latent: Tensor) -> Tensor:
-        assert latent.ndim == 3
-        assert latent.size(0) == x.size(0)
-        assert latent.size(1) == self.latent_dim
-        n_samples = x.size(2)
-        latent_upsampled = F.interpolate(latent, size=n_samples, mode="linear", align_corners=True)
-        lstm_in = tr.cat([latent_upsampled, x], dim=1)
+    def forward(self, x: T, latent: T) -> T:
+        assert x.ndim == 3
+        assert latent.shape == (x.size(0), self.latent_dim, x.size(-1))
+        lstm_in = tr.cat([latent, x], dim=1)
         lstm_in = tr.swapaxes(lstm_in, 1, 2)
-        lstm_out, _ = self.lstm(lstm_in)
+        lstm_out, new_hidden = self.lstm(lstm_in, self.hidden)
         fc_out = self.fc(lstm_out)
         fc_out = tr.swapaxes(fc_out, 1, 2)
         y_hat = fc_out + x
         y_hat = tr.tanh(y_hat)
+        self.hidden = new_hidden
         return y_hat
 
 
 if __name__ == "__main__":
-    model = SpectralTCN()
-    audio = tr.rand((3, 1, 88200))
-    y = model(audio)
+    model = LSTMEffectModel()
+    audio = tr.rand((3, 1, 1024))
+    latent = tr.rand((3, 1, 1024))
+    y = model(audio, latent)

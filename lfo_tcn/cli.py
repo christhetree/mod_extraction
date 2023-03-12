@@ -55,36 +55,35 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.cpu_val_num_examples_per_epoch", default=10)
         parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
-        parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")
+        parser.link_arguments("data.init_args.n_samples", "model.init_args.lfo_model.init_args.n_samples")  # TODO
         parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 
     def before_instantiate_classes(self) -> None:
-        devices = self.config.fit.trainer.devices
+        config = self.config[self.subcommand]
+        devices = config.trainer.devices
         if isinstance(devices, list):
             cuda_flag = f'{",".join([str(d) for d in devices])}'
             log.info(f"setting CUDA_VISIBLE_DEVICES = {cuda_flag}")
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{cuda_flag}"
-            self.config.fit.trainer.devices = len(devices)
+            config.trainer.devices = len(devices)
 
         if self.config.fit.trainer.devices < 2:
             log.info("Disabling strategy")
             self.config.fit.trainer.strategy = None
 
         if not torch.cuda.is_available():
-            self.config.fit.custom.model_name = self.config.fit.custom.cpu_model_name
-            self.config.fit.custom.dataset_name = self.config.fit.custom.cpu_dataset_name
-            self.config.fit.trainer.accelerator = None
-            self.config.fit.trainer.devices = None
-            self.config.fit.trainer.strategy = None
-            self.config.fit.data.init_args.batch_size = self.config.fit.custom.cpu_batch_size
-            self.config.fit.data.init_args.num_workers = 0
-            self.config.fit.data.init_args.check_dataset = False
-            self.config.fit.data.init_args.train_num_examples_per_epoch = \
-                self.config.fit.custom.cpu_train_num_examples_per_epoch
-            self.config.fit.data.init_args.val_num_examples_per_epoch = \
-                self.config.fit.custom.cpu_val_num_examples_per_epoch
+            config.custom.model_name = config.custom.cpu_model_name
+            config.custom.dataset_name = config.custom.cpu_dataset_name
+            config.trainer.accelerator = None
+            config.trainer.devices = None
+            config.trainer.strategy = None
+            config.data.init_args.batch_size = config.custom.cpu_batch_size
+            config.data.init_args.num_workers = 0
+            config.data.init_args.check_dataset = False
+            config.data.init_args.train_num_examples_per_epoch = config.custom.cpu_train_num_examples_per_epoch
+            config.data.init_args.val_num_examples_per_epoch = config.custom.cpu_val_num_examples_per_epoch
         else:
-            assert not self.config.fit.data.init_args.use_debug_mode
+            assert not config.data.init_args.use_debug_mode
 
     def before_fit(self) -> None:
         for cb in self.trainer.callbacks:

@@ -560,9 +560,9 @@ cython_debug/
 
 # Custom
 .idea/
-data/
-out/
+/data
+/out
+/models
 lightning_logs/
 wandb_logs/
 scratch.py
-models/
