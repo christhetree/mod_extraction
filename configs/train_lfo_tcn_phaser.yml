@@ -1,6 +1,7 @@
 seed_everything: 42
 #ckpt_path: ../models/lfo_tcn__ph_rate_egfx_clean__epoch_65_step_12870.ckpt
-ckpt_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.ckpt
+#ckpt_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.ckpt
+#ckpt_path: ../models/lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925.ckpt
 
 custom:
   project_name: lfo_tcn
@@ -79,14 +80,9 @@ data:
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
-    model: ../configs/models/spectral_tcn.yaml
+    model: ../configs/models/spectral_tcn.yml
     loss_dict:
       l1: 1.0
       mse: 0.0
 
-optimizer:
-  class_path: torch.optim.AdamW
-  init_args:
-    lr: 1e-4
-    betas: [0.8, 0.99]
-#    betas: [0.9, 0.999]
+optimizer: ../configs/opt/adam_w.yml

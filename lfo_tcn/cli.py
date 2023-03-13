@@ -1,7 +1,7 @@
 import logging
 import os
 
-import torch
+import torch as tr
 from jsonargparse import lazy_instance
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.cli import LightningCLI, LightningArgumentParser
@@ -59,7 +59,10 @@ class CustomLightningCLI(LightningCLI):
         parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 
     def before_instantiate_classes(self) -> None:
-        config = self.config[self.subcommand]
+        if self.subcommand is not None:
+            config = self.config[self.subcommand]
+        else:
+            config = self.config
         devices = config.trainer.devices
         if isinstance(devices, list):
             cuda_flag = f'{",".join([str(d) for d in devices])}'
@@ -67,11 +70,11 @@ class CustomLightningCLI(LightningCLI):
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{cuda_flag}"
             config.trainer.devices = len(devices)
 
-        if self.config.fit.trainer.devices < 2:
+        if config.trainer.devices < 2:
             log.info("Disabling strategy")
-            self.config.fit.trainer.strategy = None
+            config.trainer.strategy = None
 
-        if not torch.cuda.is_available():
+        if not tr.cuda.is_available():
             config.custom.model_name = config.custom.cpu_model_name
             config.custom.dataset_name = config.custom.cpu_dataset_name
             config.trainer.accelerator = None
@@ -92,7 +95,7 @@ class CustomLightningCLI(LightningCLI):
                               f"{self.config.fit.custom.dataset_name}__{cb.filename}"
                 log.info(f"Setting checkpoint name to: {cb.filename}")
 
-        if torch.cuda.is_available():
+        if tr.cuda.is_available():
             if self.config.fit.custom.use_wandb:
                 wandb_logger = WandbLogger(save_dir="wandb_logs",
                                            project=self.config.fit.custom.project_name,
@@ -108,8 +111,3 @@ class CustomLightningCLI(LightningCLI):
                  f"{self.config.fit.custom.model_name} "
                  f"{self.config.fit.custom.dataset_name} ================")
         log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
-
-
-def run_custom_cli(config_path: str) -> None:
-    cli = CustomLightningCLI(args=["fit", "-c", config_path],
-                             trainer_defaults=CustomLightningCLI.trainer_defaults)

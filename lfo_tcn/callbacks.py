@@ -9,6 +9,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch import Tensor as T
 
 from lfo_tcn.plotting import plot_spectrogram, plot_mod_sig, fig2img
+from lfo_tcn.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -58,9 +59,14 @@ class LogModSigCallback(Callback):
                     title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
                                        if k not in {"mix", "rate_hz"}])
                     w = wet[idx]
-                    plot_spectrogram(w, ax[0], title, sr=pl_module.sr)
+                    spec = plot_spectrogram(w, ax[0], title, sr=pl_module.sr)
+                    n_frames = spec.size(-1)
                     m_hat = mod_sig_hat[idx]
+                    if m_hat.size(-1) != n_frames:
+                        m_hat = linear_interpolate_last_dim(m_hat, n_frames)
                     m = mod_sig[idx]
+                    if m.size(-1) != n_frames:
+                        m = linear_interpolate_last_dim(m, n_frames)
                     plot_mod_sig(ax[1], m_hat, m)
                     fig.tight_layout()
                     img = fig2img(fig)

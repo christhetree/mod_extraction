@@ -1,0 +1,17 @@
+pedalboard_phaser:
+  rate_hz:
+#    min: 0.25
+    min: 0.35
+    max: 5.0
+  depth:
+    min: 0.5
+    max: 0.5
+  centre_frequency_hz:
+    min: 420.0
+    max: 460.0
+  feedback:
+    min: 0.5
+    max: 0.5
+  mix:
+    min: 1.0
+    max: 1.0

@@ -36,7 +36,7 @@ def plot_spectrogram(audio: T,
                      title: Optional[str] = None,
                      save_name: Optional[str] = None,
                      save_dir: str = OUT_DIR,
-                     sr: float = 44100) -> None:
+                     sr: float = 44100) -> T:
     assert audio.ndim < 3
     audio = audio.detach()
     if audio.ndim == 1:
@@ -59,6 +59,8 @@ def plot_spectrogram(audio: T,
             save_name = f"{save_name}.wav"
         save_path = os.path.join(save_dir, save_name)
         torchaudio.save(save_path, audio, sr)
+
+    return spec
 
 
 def plot_mod_sig(ax: Subplot,

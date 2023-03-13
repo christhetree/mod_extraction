@@ -3,7 +3,7 @@ import os
 
 import torch
 
-from lfo_tcn.cli import run_custom_cli
+from lfo_tcn.cli import CustomLightningCLI
 from lfo_tcn.paths import CONFIGS_DIR
 
 logging.basicConfig()
@@ -17,4 +17,6 @@ if __name__ == "__main__":
     # config_name = "train_lfo_tcn_flanger.yml"
     config_name = "train_em_phaser.yml"
     config_path = os.path.join(CONFIGS_DIR, config_name)
-    run_custom_cli(config_path)
+
+    cli = CustomLightningCLI(args=["fit", "-c", config_path],
+                             trainer_defaults=CustomLightningCLI.trainer_defaults)

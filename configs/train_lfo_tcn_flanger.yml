@@ -84,7 +84,7 @@ data:
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
-    model: ../configs/models/spectral_tcn.yaml
+    model: ../configs/models/spectral_tcn.yml
     loss_dict:
       l1: 1.0
       mse: 0.0

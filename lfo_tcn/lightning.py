@@ -5,13 +5,13 @@ from typing import Dict, Optional
 
 import pytorch_lightning as pl
 import torch as tr
-import torch.nn.functional as F
 from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
 from lfo_tcn.losses import get_loss_func_by_name
 from lfo_tcn.models import HiddenStateModel
+from lfo_tcn.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -78,10 +78,7 @@ class LFOExtraction(BaseLightingModule):
         prefix = "train" if is_training else "val"
         dry, wet, mod_sig, fx_params = batch
         mod_sig_hat = self.model(wet).squeeze(1)
-        mod_sig = F.interpolate(mod_sig.unsqueeze(1),
-                                mod_sig_hat.size(-1),
-                                mode="linear",
-                                align_corners=True).squeeze(1)
+        mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
         assert mod_sig.shape == mod_sig_hat.shape
 
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
@@ -147,10 +144,7 @@ class LFOEffectModeling(BaseLightingModule):
                 mod_sig_hat = self.lfo_model(wet).squeeze(1)
 
             if mod_sig is not None and mod_sig.size(-1) != mod_sig_hat.size(-1):
-                mod_sig = F.interpolate(mod_sig.unsqueeze(1),
-                                        mod_sig_hat.size(-1),
-                                        mode="linear",
-                                        align_corners=True).squeeze(1)
+                mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
 
             assert mod_sig.shape == mod_sig_hat.shape
             return mod_sig_hat, mod_sig
@@ -163,10 +157,8 @@ class LFOEffectModeling(BaseLightingModule):
         assert dry.size(-1) == wet.size(-1)
 
         mod_sig_hat, mod_sig = self.extract_mod_sig(wet, mod_sig)
-        mod_sig_hat_sr = F.interpolate(mod_sig_hat.unsqueeze(1),
-                                       dry.size(-1),
-                                       mode="linear",
-                                       align_corners=True)
+        mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
+        mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
 
         if isinstance(self.effect_model, HiddenStateModel):
             self.effect_model.detach_hidden()
@@ -230,10 +222,8 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         assert dry.size(-1) >= self.warmup_n_samples + self.step_n_samples
 
         mod_sig_hat, mod_sig = self.extract_mod_sig(wet, mod_sig)
-        mod_sig_hat_sr = F.interpolate(mod_sig_hat.unsqueeze(1),
-                                       dry.size(-1),
-                                       mode="linear",
-                                       align_corners=True)
+        mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
+        mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
 
         self.effect_model.clear_hidden()
         warmup_mod_sig_hat_sr = mod_sig_hat_sr[:, :, :self.warmup_n_samples]
