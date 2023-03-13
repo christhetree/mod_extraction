@@ -12,6 +12,7 @@ dependencies:
   - cudatoolkit=11.7
   - pip:
     - auraloss
+    - librosa
     - matplotlib
     - nvitop
     - pedalboard

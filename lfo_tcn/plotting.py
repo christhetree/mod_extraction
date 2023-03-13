@@ -1,9 +1,10 @@
 import io
 import logging
 import os
-from typing import Optional
+from typing import Optional, List
 
 import PIL
+import librosa
 import torch as tr
 import torchaudio
 from matplotlib import pyplot as plt
@@ -74,3 +75,43 @@ def plot_mod_sig(ax: Subplot,
     ax.plot(mod_sig_hat)
     if title is not None:
         ax.set_title(title)
+
+
+def plot_waveforms_stacked(waveforms: List[T],
+                           sr: float,
+                           title: Optional[str] = None,
+                           waveform_labels: Optional[List[str]] = None,
+                           show: bool = False) -> Figure:
+    assert waveforms
+    if waveform_labels is None:
+        waveform_labels = [None] * len(waveforms)
+    assert len(waveform_labels) == len(waveforms)
+
+    fig, axs = plt.subplots(
+        nrows=len(waveforms),
+        sharex="all",
+        sharey="all",
+        figsize=(7, 2 * len(waveforms)),
+        squeeze=True,
+    )
+
+    for idx, (ax, w, label) in enumerate(zip(axs, waveforms, waveform_labels)):
+        assert 0 < w.ndim <= 2
+        if w.ndim == 2:
+            assert w.size(0) == 1
+            w = w.squeeze(0)
+        w = w.detach().float().cpu().numpy()
+        if idx == len(waveforms) - 1:
+            axis = "time"
+        else:
+            axis = None
+        librosa.display.waveshow(w, axis=axis, sr=sr, label=label, ax=ax)
+        ax.set_title(label)
+        ax.grid(color="lightgray", axis="x")
+
+    if title is not None:
+        fig.suptitle(title)
+    fig.tight_layout()
+    if show:
+        fig.show()
+    return fig

@@ -6,6 +6,7 @@ dependencies:
   - pip
   - pip:
     - auraloss
+    - librosa
     - matplotlib
     - pedalboard
     - pip-chill

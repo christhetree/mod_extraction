@@ -8,7 +8,7 @@ from pytorch_lightning.cli import LightningCLI, LightningArgumentParser
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
 
-from lfo_tcn.callbacks import LogModSigCallback
+from lfo_tcn.callbacks import LogSpecAndModSigCallback, LogAudioCallback
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -21,7 +21,8 @@ class CustomLightningCLI(LightningCLI):
         "callbacks": [
             # TODO(cm): use text instead?
             LearningRateMonitor(logging_interval="step"),
-            LogModSigCallback(n_examples=4),
+            LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
+            LogAudioCallback(n_examples=4, log_dry_audio=True),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
