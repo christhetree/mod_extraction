@@ -1,6 +1,7 @@
 import logging
 import os
 
+import auraloss.freq
 import torch
 from torch import Tensor as T, nn
 
@@ -83,5 +84,7 @@ def get_loss_func_by_name(name: str) -> nn.Module:
         return ESRLoss(reduction="mean")
     elif name == "dc":
         return DCLoss(reduction="mean")
+    elif name == "mrstft":
+        return auraloss.freq.MultiResolutionSTFTLoss(reduction="mean")
     else:
         raise KeyError

@@ -219,7 +219,8 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         super().__init__(effect_model,
                          lfo_model,
                          lfo_model_weights_path,
-                         freeze_lfo_model=True,
+                         # freeze_lfo_model=True,
+                         freeze_lfo_model=False,
                          sr=sr,
                          loss_dict=loss_dict)
         self.param_model = param_model
@@ -246,16 +247,17 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         # mod_sig_hat_sr = tr.cat([mod_sig_hat_sr, fb_param], dim=1)
 
         self.effect_model.clear_hidden()
-        warmup_mod_sig_hat_sr = mod_sig_hat_sr[:, :, :self.warmup_n_samples]
+        warmup_latent_sr = mod_sig_hat_sr[:, :, :self.warmup_n_samples]
 
-        # if self.param_model is not None:
-        #     param_latent = self.param_model(wet).unsqueeze(-1)
-        #     warmup_param_latent = param_latent.repeat(1, 1, self.warmup_n_samples)
-        #     warmup_mod_sig_hat_sr = tr.cat([warmup_mod_sig_hat_sr, warmup_param_latent], dim=1)
+        param_latent = None
+        if self.param_model is not None:
+            param_latent = self.param_model(wet).unsqueeze(-1)
+            warmup_param_latent_sr = param_latent.repeat(1, 1, self.warmup_n_samples)
+            warmup_latent_sr = tr.cat([warmup_latent_sr, warmup_param_latent_sr], dim=1)
 
         warmup_dry = dry[:, :, :self.warmup_n_samples]
-        warmup_wet_hat = self.effect_model(warmup_dry, warmup_mod_sig_hat_sr)
-        if prefix == "train":
+        warmup_wet_hat = self.effect_model(warmup_dry, warmup_latent_sr)
+        if is_training:
             self.effect_model.detach_hidden()
             opt.zero_grad()
 
@@ -264,19 +266,26 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
             end_idx = start_idx + self.step_n_samples
             if end_idx > dry.size(-1):
                 break
-            step_mod_sig_hat_sr = mod_sig_hat_sr[:, :, start_idx:end_idx]
+
+            if is_training:
+                mod_sig_hat, mod_sig = self.extract_mod_sig(wet, mod_sig)
+                mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
+                mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
+
+            step_latent_sr = mod_sig_hat_sr[:, :, start_idx:end_idx]
             step_dry = dry[:, :, start_idx:end_idx]
             step_wet = wet[:, :, start_idx:end_idx]
 
-            # if self.param_model is not None:
-            #     param_latent = self.param_model(wet).unsqueeze(-1)
-            #     step_param_latent = param_latent.repeat(1, 1, self.step_n_samples)
-            #     step_mod_sig_hat_sr = tr.cat([step_mod_sig_hat_sr, step_param_latent], dim=1)
+            if self.param_model is not None:
+                if is_training:
+                    param_latent = self.param_model(wet).unsqueeze(-1)
+                step_param_latent_sr = param_latent.repeat(1, 1, self.step_n_samples)
+                step_latent_sr = tr.cat([step_latent_sr, step_param_latent_sr], dim=1)
 
-            step_wet_hat = self.effect_model(step_dry, step_mod_sig_hat_sr)
-            step_loss = self.calc_and_log_losses(step_wet_hat, step_wet, prefix, should_log=False)
+            step_wet_hat = self.effect_model(step_dry, step_latent_sr)
             wet_hat_chunks.append(step_wet_hat)
-            if prefix == "train":
+            if is_training:
+                step_loss = self.calc_and_log_losses(step_wet_hat, step_wet, prefix, should_log=False)
                 self.manual_backward(step_loss)
                 opt.step()
                 self.effect_model.detach_hidden()
@@ -284,14 +293,14 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
 
         wet_hat = tr.cat(wet_hat_chunks, dim=-1)
         wet_hat_n_samples = wet_hat.size(-1)
-        dry = dry[:, :, :wet_hat_n_samples]
-        wet = wet[:, :, :wet_hat_n_samples]
+
+        # Remove warmup section to avoid click
+        dry = dry[:, :, self.warmup_n_samples:wet_hat_n_samples]
+        wet = wet[:, :, self.warmup_n_samples:wet_hat_n_samples]
+        wet_hat = wet_hat[:, :, self.warmup_n_samples:wet_hat_n_samples]
         assert dry.shape == wet.shape == wet_hat.shape
 
-        batch_loss = self.calc_and_log_losses(wet_hat[:, :, self.warmup_n_samples:],
-                                              wet[:, :, self.warmup_n_samples:],
-                                              prefix,
-                                              should_log=True)
+        batch_loss = self.calc_and_log_losses(wet_hat, wet, prefix, should_log=True)
         data_dict = {
             "dry": dry.detach().float().cpu(),
             "wet": wet.detach().float().cpu(),

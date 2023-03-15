@@ -7,12 +7,15 @@ seed_everything: 44
 custom:
   project_name: lfo_tcn
 #  model_name: lstm_48_gt_l1_tbp_1024
-  model_name: lstm_48_fr_l1_tbp_1024
+#  model_name: lstm_48_fr_p2_tbp_1024
+  model_name: lstm_48_ms_p2_tbp_1024
 #  model_name: lstm_48_gt_p_gt_tbp_1024
 #  dataset_name: ph_rate_egfx_clean
-  dataset_name: ph_fb_egfx_clean
+#  dataset_name: ph_fb_egfx_clean
 #  dataset_name: ph_cf_egfx_clean
+  dataset_name: ph_all2_egfx_clean
 #  dataset_name: ph_rate_idmt_4
+#  dataset_name: ph_all2_idmt_4
 #  dataset_name: ph_fb_idmt_4
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
@@ -21,7 +24,7 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [2]
+  devices: [3]
   max_epochs: 100
 
 data:
@@ -45,7 +48,7 @@ data:
     silence_threshold_energy: 1e-6
 #    silence_threshold_energy: 1e-4
     n_retries: 10
-    check_dataset: true
+    check_dataset: false
     fx_config:
       pedalboard_phaser:
         rate_hz:
@@ -53,19 +56,19 @@ data:
           min: 0.35
           max: 5.0
         depth:
-          min: 0.5
-          max: 0.5
+#          min: 0.5
+#          max: 0.5
 #          min: 0.2
 #          max: 0.7
-#          min: 0.1
-#          max: 1.0
+          min: 0.1
+          max: 1.0
         centre_frequency_hz:
-          min: 420.0
-          max: 460.0
+#          min: 420.0
+#          max: 460.0
 #          min: 200.0
 #          max: 800.0
-#          min: 70.0
-#          max: 18000.0
+          min: 70.0
+          max: 18000.0
         feedback:
 #          min: 0.5
 #          max: 0.5
@@ -88,17 +91,17 @@ model:
         in_ch: 1
         out_ch: 1
         n_hidden: 48
-        latent_dim: 1
+#        latent_dim: 1
 #        latent_dim: 2
-#        latent_dim: 3
+        latent_dim: 3
 #    lfo_model: null
     lfo_model: ../configs/models/spectral_tcn.yml
-#    lfo_model_weights_path: null
+    lfo_model_weights_path: null
 #    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_egfx_clean__epoch_65_step_12870.pt
-    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
+#    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
 #    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925.pt
-#    param_model: ../configs/models/spectral_ds_tcn.yml
-    param_model: null
+#    param_model: null
+    param_model: ../configs/models/spectral_ds_tcn.yml
     loss_dict:
       l1: 1.0
       esr: 0.0
