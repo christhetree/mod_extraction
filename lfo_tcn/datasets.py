@@ -24,12 +24,13 @@ class RandomAudioChunkDataset(Dataset):
             self,
             input_dir: str,
             n_samples: int,
-            sr: float = 44100,
+            sr: float,
             ext: str = "wav",
             num_examples_per_epoch: int = 10000,
             silence_fraction_allowed: float = 0.2,
             silence_threshold_energy: float = 1e-6,  # Around -60 dBFS
-            n_retries: int = 20,
+            n_retries: int = 10,
+            use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
     ) -> None:
@@ -42,6 +43,7 @@ class RandomAudioChunkDataset(Dataset):
         self.silence_fraction_allowed = silence_fraction_allowed
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
+        self.use_debug_mode = use_debug_mode
         self.check_dataset = check_dataset
         self.min_suitable_files_fraction = min_suitable_files_fraction
         self.max_n_consecutive_silent_samples = int(silence_fraction_allowed * n_samples)
@@ -168,15 +170,15 @@ class RandomAudioChunkDataset(Dataset):
 class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
     def __init__(
             self,
+            fx_config: Dict[str, Any],
             input_dir: str,
             n_samples: int,
-            fx_config: Dict[str, Any],
-            sr: float = 44100,
+            sr: float,
             ext: str = "wav",
             num_examples_per_epoch: int = 10000,
-            silence_fraction_allowed: float = 0.2,
+            silence_fraction_allowed: float = 0.1,
             silence_threshold_energy: float = 1e-6,
-            n_retries: int = 20,
+            n_retries: int = 10,
             use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
@@ -189,10 +191,10 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                          silence_fraction_allowed,
                          silence_threshold_energy,
                          n_retries,
+                         use_debug_mode,
                          check_dataset,
                          min_suitable_files_fraction)
         self.fx_config = fx_config
-        self.use_debug_mode = use_debug_mode
 
     def __getitem__(self, _) -> (T, T):
         audio_chunk = super().__getitem__(_)

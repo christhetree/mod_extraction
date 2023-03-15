@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from typing import Optional, List, Tuple
 
@@ -22,11 +23,12 @@ class SpectralTCN(nn.Module):
                  kernel_size: int = 13,
                  out_channels: Optional[List[int]] = None,
                  dilations: Optional[List[int]] = None,
-                 n_fc_units: int = 128,
+                 n_fc_units: int = 128,  # TODO(cm): remove
                  latent_dim: int = 1,
                  smooth_n_frames: int = 8,
                  use_ln: bool = True,
-                 use_res: bool = True) -> None:
+                 use_res: bool = True,
+                 eps: float = 1e-7) -> None:
         super().__init__()
         self.n_fft = n_fft
         self.hop_len = hop_len
@@ -36,6 +38,7 @@ class SpectralTCN(nn.Module):
         self.smooth_n_frames = smooth_n_frames
         self.use_ln = use_ln
         self.use_res = use_res
+        self.eps = eps
         if out_channels is None:
             out_channels = [96] * 5
         self.out_channels = out_channels
@@ -63,9 +66,8 @@ class SpectralTCN(nn.Module):
 
     def forward(self, x: T) -> T:
         assert x.ndim == 3
-
         x = self.spectrogram(x).squeeze(1)
-        x = tr.clip(x, min=1e-7)  # TODO(cm)
+        x = tr.clip(x, min=self.eps)
         x = tr.log(x)
 
         x = self.tcn(x)
@@ -75,6 +77,80 @@ class SpectralTCN(nn.Module):
         if self.smooth_n_frames > 1:
             x = x.unfold(dimension=-1, size=self.smooth_n_frames, step=1)
             x = tr.mean(x, dim=-1, keepdim=False)
+        return x
+
+
+class SpectralDSTCN(nn.Module):
+    def __init__(self,
+                 n_samples: int = 88100,
+                 n_fft: int = 1024,
+                 hop_len: int = 256,
+                 kernel_size: int = 13,
+                 out_channels: Optional[List[int]] = None,
+                 dilations: Optional[List[int]] = None,
+                 strides: Optional[List[int]] = None,
+                 n_fc_units: int = 48,
+                 latent_dim: int = 2,
+                 use_ln: bool = True,
+                 use_res: bool = True,
+                 eps: float = 1e-7) -> None:
+        super().__init__()
+        self.n_fft = n_fft
+        self.hop_len = hop_len
+        self.kernel_size = kernel_size
+        self.n_fc_units = n_fc_units
+        self.latent_dim = latent_dim
+        self.use_ln = use_ln
+        self.use_res = use_res
+        self.eps = eps
+
+        if out_channels is None:
+            out_channels = [96] * 5
+        self.out_channels = out_channels
+        if dilations is None:
+            dilations = [2 ** idx for idx in range(len(out_channels))]
+        self.dilations = dilations
+        if strides is None:
+            strides = [2] * len(out_channels)
+        self.strides = strides
+
+        self.spectrogram = Spectrogram(n_fft, hop_length=hop_len, normalized=False)
+        in_ch = n_fft // 2 + 1
+
+        n_frames = n_samples // hop_len + 1
+        temporal_dims = [n_frames]
+        curr_n_frames = n_frames
+        for stride in strides[:-1]:
+            curr_n_frames = math.ceil(curr_n_frames / stride)
+            temporal_dims.append(curr_n_frames)
+
+        self.tcn = TCN(out_channels,
+                       dilations,
+                       in_ch,
+                       kernel_size,
+                       strides,
+                       padding=None,
+                       use_ln=use_ln,
+                       temporal_dims=temporal_dims,
+                       use_res=use_res,
+                       is_causal=False)
+        self.fc = nn.Linear(out_channels[-1], self.n_fc_units)
+        self.fc_act = nn.PReLU(self.n_fc_units)
+        self.output = nn.Linear(self.n_fc_units, self.latent_dim)
+
+    def forward(self, x: T) -> T:
+        assert x.ndim == 3
+        x = self.spectrogram(x).squeeze(1)
+        x = tr.clip(x, min=self.eps)
+        x = tr.log(x)
+
+        x = self.tcn(x)
+        x = tr.mean(x, dim=-1)
+
+        x = self.fc(x)
+        x = self.fc_act(x)
+        x = self.output(x)
+        x = tr.sigmoid(x)
         return x
 
 
@@ -121,7 +197,11 @@ class LSTMEffectModel(HiddenStateModel):
 
 
 if __name__ == "__main__":
-    model = LSTMEffectModel()
-    audio = tr.rand((3, 1, 1024))
-    latent = tr.rand((3, 1, 1024))
-    y = model(audio, latent)
+    # model = LSTMEffectModel()
+    # audio = tr.rand((3, 1, 1024))
+    # latent = tr.rand((3, 1, 1024))
+    # y = model(audio, latent)
+    model = SpectralDSTCN()
+    audio = tr.rand((3, 1, 88100))
+    y = model(audio)
+    print(y.shape)

@@ -56,7 +56,11 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.cpu_val_num_examples_per_epoch", default=10)
         parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
+
+        # parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
         parser.link_arguments("data.init_args.n_samples", "model.init_args.lfo_model.init_args.n_samples")  # TODO
+        parser.link_arguments("data.init_args.n_samples", "model.init_args.param_model.init_args.n_samples")  # TODO
+
         parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 
     def before_instantiate_classes(self) -> None:
@@ -112,3 +116,6 @@ class CustomLightningCLI(LightningCLI):
                  f"{self.config.fit.custom.model_name} "
                  f"{self.config.fit.custom.dataset_name} ================")
         log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
+
+    # def before_validate(self) -> None:
+    #     tr.manual_seed(42)  # TODO(cm)

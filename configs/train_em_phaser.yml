@@ -6,21 +6,22 @@ seed_everything: 44
 
 custom:
   project_name: lfo_tcn
-#  model_name: lstm_48_gt_esr_dc_tbp_1024
 #  model_name: lstm_48_gt_l1_tbp_1024
-  model_name: lstm_48_fr_esr_dc_tbp_1024
-#  model_name: lstm_48_fr_l1_tbp_1024
+  model_name: lstm_48_fr_l1_tbp_1024
+#  model_name: lstm_48_gt_p_gt_tbp_1024
 #  dataset_name: ph_rate_egfx_clean
-  dataset_name: ph_rate_idmt_4
+  dataset_name: ph_fb_egfx_clean
+#  dataset_name: ph_cf_egfx_clean
+#  dataset_name: ph_rate_idmt_4
+#  dataset_name: ph_fb_idmt_4
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
-#  use_wandb: false
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [5]
+  devices: [2]
   max_epochs: 100
 
 data:
@@ -29,22 +30,22 @@ data:
     batch_size: 512
     num_workers: 12
     use_debug_mode: false
-#    train_dir: ../data/egfx_clean/train
-#    val_dir: ../data/egfx_clean/val
-    train_dir: ../data/idmt_4/train
-    val_dir: ../data/idmt_4/val
+    train_dir: ../data/egfx_clean/train
+    val_dir: ../data/egfx_clean/val
+#    train_dir: ../data/idmt_4/train
+#    val_dir: ../data/idmt_4/val
     train_num_examples_per_epoch: 80000
     val_num_examples_per_epoch: 20000
-#    n_samples: 96000
-    n_samples: 88100
-#    sr: 48000
-    sr: 44100
+    n_samples: 96000
+#    n_samples: 88100
+    sr: 48000
+#    sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-#    silence_threshold_energy: 1e-6
-    silence_threshold_energy: 1e-4
+    silence_threshold_energy: 1e-6
+#    silence_threshold_energy: 1e-4
     n_retries: 10
-    check_dataset: false
+    check_dataset: true
     fx_config:
       pedalboard_phaser:
         rate_hz:
@@ -54,31 +55,30 @@ data:
         depth:
           min: 0.5
           max: 0.5
-#            min: 0.2
-#            max: 0.7
-#            min: 0.1
-#            max: 1.0
+#          min: 0.2
+#          max: 0.7
+#          min: 0.1
+#          max: 1.0
         centre_frequency_hz:
           min: 420.0
           max: 460.0
-#            min: 200.0
-#            max: 800.0
-#            min: 70.0
-#            max: 18000.0
+#          min: 200.0
+#          max: 800.0
+#          min: 70.0
+#          max: 18000.0
         feedback:
-          min: 0.5
-          max: 0.5
-#            min: 0.2
-#            max: 0.7
-#            min: 0.0
-#            max: 0.7
+#          min: 0.5
+#          max: 0.5
+#          min: 0.2
+#          max: 0.7
+          min: 0.0
+          max: 0.7
         mix:
           min: 1.0
           max: 1.0
 
 model:
   class_path: lfo_tcn.lightning.TBPTTLFOEffectModeling
-#  class_path: lfo_tcn.lightning.LFOEffectModeling
   init_args:
     warmup_n_samples: 1024
     step_n_samples: 1024
@@ -89,22 +89,19 @@ model:
         out_ch: 1
         n_hidden: 48
         latent_dim: 1
+#        latent_dim: 2
+#        latent_dim: 3
 #    lfo_model: null
     lfo_model: ../configs/models/spectral_tcn.yml
 #    lfo_model_weights_path: null
 #    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_egfx_clean__epoch_65_step_12870.pt
-#    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
-    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925.pt
-#    freeze_lfo_model: true
-#    freeze_lfo_model: false
-#    sr: 48000  # TODO
-    sr: 44100  # TODO
+    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
+#    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925.pt
+#    param_model: ../configs/models/spectral_ds_tcn.yml
+    param_model: null
     loss_dict:
-#      esr: 0.0
-      esr: 1.0
-#      dc: 0.0
-      dc: 1.0
-      l1: 0.0
-#      l1: 1.0
+      l1: 1.0
+      esr: 0.0
+      dc: 0.0
 
 optimizer: ../configs/opt/adam_w.yml

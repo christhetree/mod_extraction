@@ -1,0 +1,16 @@
+mod_sig:
+  rate_hz:
+#    min: 0.25
+    min: 0.35
+    max: 5.0
+  phase:
+    min: 0.0
+    max: 6.28318530718
+  shapes:
+    - "cos"
+#    - "rect_cos"
+#    - "inv_rect_cos"
+#    - "tri"
+#    - "saw"
+#    - "rsaw"
+#    - "sqr"

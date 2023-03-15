@@ -91,6 +91,19 @@ class LFOExtraction(BaseLightingModule):
         }
 
         fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
+
+        # for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],
+        #                                       data_dict["wet"],
+        #                                       data_dict["mod_sig_hat"])):
+        #     # if "mod_sig" in data_dict:
+        #     #     m = data_dict["mod_sig"][idx]
+        #     #     plt.plot(m)
+        #     plt.plot(m_h)
+        #     plt.title(f"mod_sig_{idx}")
+        #     plt.show()
+        #     # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
+        #     plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+
         return loss, data_dict, fx_params
 
     def training_step(self, batch: (T, T, T, Dict[str, T]), batch_idx: int) -> T:
@@ -102,7 +115,7 @@ class LFOExtraction(BaseLightingModule):
 
 
 class LFOEffectModeling(BaseLightingModule):
-    default_loss_dict = {"esr": 1.0, "dc": 1.0, "l1": 0.0}
+    default_loss_dict = {"l1": 1.0, "esr": 0.0, "dc": 0.0}
 
     def __init__(self,
                  effect_model: nn.Module,
@@ -115,7 +128,7 @@ class LFOEffectModeling(BaseLightingModule):
         self.freeze_lfo_model = freeze_lfo_model
         self.sr = sr
         self.use_gt_mod_sig = lfo_model is None
-        self.save_hyperparameters(ignore=["effect_model", "lfo_model"])
+        self.save_hyperparameters(ignore=["effect_model", "lfo_model", "param_model"])
         log.info(f"\n{self.hparams}")
         self.effect_model = effect_model
 
@@ -197,6 +210,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                  effect_model: HiddenStateModel,
                  lfo_model: Optional[nn.Module] = None,
                  lfo_model_weights_path: Optional[str] = None,
+                 param_model: Optional[nn.Module] = None,
                  sr: float = 44100,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         assert warmup_n_samples > 0
@@ -208,13 +222,15 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                          freeze_lfo_model=True,
                          sr=sr,
                          loss_dict=loss_dict)
+        self.param_model = param_model
         self.automatic_optimization = False
 
     def common_step(self,
                     batch: (T, T, Optional[T], Optional[Dict[str, T]]),
                     is_training: bool) -> (T, Dict[str, T], Optional[Dict[str, T]]):
         opt: Optimizer = self.optimizers()
-        assert not isinstance(opt, list), "Only supports 1 optimizer for now"
+        if is_training:
+            assert not isinstance(opt, list), "Only supports 1 optimizer for now"
 
         prefix = "train" if is_training else "val"
         dry, wet, mod_sig, fx_params = batch
@@ -225,8 +241,18 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
         mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
 
+        # fb_param = fx_params["feedback"].float().view(-1, 1, 1)
+        # fb_param = fb_param.repeat(1, 1, mod_sig_hat_sr.size(-1))
+        # mod_sig_hat_sr = tr.cat([mod_sig_hat_sr, fb_param], dim=1)
+
         self.effect_model.clear_hidden()
         warmup_mod_sig_hat_sr = mod_sig_hat_sr[:, :, :self.warmup_n_samples]
+
+        # if self.param_model is not None:
+        #     param_latent = self.param_model(wet).unsqueeze(-1)
+        #     warmup_param_latent = param_latent.repeat(1, 1, self.warmup_n_samples)
+        #     warmup_mod_sig_hat_sr = tr.cat([warmup_mod_sig_hat_sr, warmup_param_latent], dim=1)
+
         warmup_dry = dry[:, :, :self.warmup_n_samples]
         warmup_wet_hat = self.effect_model(warmup_dry, warmup_mod_sig_hat_sr)
         if prefix == "train":
@@ -241,6 +267,12 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
             step_mod_sig_hat_sr = mod_sig_hat_sr[:, :, start_idx:end_idx]
             step_dry = dry[:, :, start_idx:end_idx]
             step_wet = wet[:, :, start_idx:end_idx]
+
+            # if self.param_model is not None:
+            #     param_latent = self.param_model(wet).unsqueeze(-1)
+            #     step_param_latent = param_latent.repeat(1, 1, self.step_n_samples)
+            #     step_mod_sig_hat_sr = tr.cat([step_mod_sig_hat_sr, step_param_latent], dim=1)
+
             step_wet_hat = self.effect_model(step_dry, step_mod_sig_hat_sr)
             step_loss = self.calc_and_log_losses(step_wet_hat, step_wet, prefix, should_log=False)
             wet_hat_chunks.append(step_wet_hat)
@@ -271,4 +303,19 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
 
         if fx_params is not None:
             fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
+
+        # for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
+        #                                            data_dict["wet"],
+        #                                            data_dict["wet_hat"],
+        #                                            data_dict["mod_sig_hat"])):
+        #     if "mod_sig" in data_dict:
+        #         m = data_dict["mod_sig"][idx]
+        #         plt.plot(m)
+        #     plt.plot(m_h)
+        #     plt.title(f"mod_sig_{idx}")
+        #     plt.show()
+        #     plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
+        #     plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+        #     plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"wet_hat_{idx}", sr=self.sr)
+
         return batch_loss, data_dict, fx_params

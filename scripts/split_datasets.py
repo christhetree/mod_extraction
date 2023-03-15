@@ -48,6 +48,26 @@ def split_egfx(root_dir: str, val_split: float = 0.3) -> None:
                 shutil.copyfile(file_path, dest_path)
 
 
+def split_egfx_from_existing(root_dir: str, new_name: str, prev_name: str = "clean") -> None:
+    existing_paths = []
+    for root_dir_2, _, file_names in os.walk(os.path.join(root_dir)):
+        for file_name in file_names:
+            if file_name.endswith(".wav") and not file_name.startswith("."):
+                existing_paths.append(os.path.join(root_dir_2, file_name))
+
+    dest_paths = list(existing_paths)
+    dest_paths = [p.replace(prev_name, new_name) for p in dest_paths]
+    src_paths = list(dest_paths)
+    src_paths = [p.replace("train/", "") for p in src_paths]
+    src_paths = [p.replace("val/", "") for p in src_paths]
+
+    for src_path, dest_path in zip(src_paths, dest_paths):
+        assert os.path.basename(src_path) == os.path.basename(dest_path)
+        os.makedirs(os.path.dirname(src_path), exist_ok=True)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        shutil.copyfile(src_path, dest_path)
+
+
 def split_idmt_4(root_dir: str, val_split: float = 0.3, offset_n_bars: int = 3) -> None:
     train_dir = os.path.join(root_dir, "train")
     val_dir = os.path.join(root_dir, "val")
@@ -90,5 +110,9 @@ def split_idmt_4(root_dir: str, val_split: float = 0.3, offset_n_bars: int = 3) 
 
 
 if __name__ == "__main__":
-    split_egfx(os.path.join(DATA_DIR, "egfx_phaser"))
+    # split_egfx(os.path.join(DATA_DIR, "egfx_phaser"))
     # split_idmt_4(os.path.join(DATA_DIR, "idmt_4"), 0.25)
+    # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "phaser")
+    # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "flanger")
+    # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "chorus")
+    pass

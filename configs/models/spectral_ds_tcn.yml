@@ -1,12 +1,11 @@
-class_path: lfo_tcn.models.SpectralTCN
+class_path: lfo_tcn.models.SpectralDSTCN
 init_args:
   n_fft: 1024
   hop_len: 256
   kernel_size: 13
   out_channels: [96, 96, 96, 96, 96]
   dilations: [1, 2, 4, 8, 16]
-  n_fc_units: 128  # TODO(cm): remove
-  latent_dim: 1
-  smooth_n_frames: 8
+  n_fc_units: 48
+  latent_dim: 2
   use_ln: true
   use_res: true

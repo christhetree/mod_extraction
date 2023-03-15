@@ -1,0 +1,14 @@
+flanger:
+  max_delay_ms: 10.0
+  feedback:
+    min: 0.2
+    max: 0.7
+  width:
+    min: 0.2
+    max: 0.7
+  depth:
+    min: 0.2
+    max: 0.7
+  mix:
+    min: 1.0
+    max: 1.0

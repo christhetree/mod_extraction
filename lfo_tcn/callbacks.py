@@ -112,9 +112,12 @@ class LogAudioCallback(Callback):
         if outputs is None:
             return
         _, data_dict, fx_params = outputs
+        if "dry" not in data_dict or "wet" not in data_dict or "wet_hat" not in data_dict:
+            log.warning(f"data_dict doesn't contain the correct keys for logging audio: {data_dict.keys()}")
+            return
         dry = data_dict["dry"]
         wet = data_dict["wet"]
-        wet_hat = data_dict.get("wet_hat")
+        wet_hat = data_dict["wet_hat"]
         n_batches = dry.size(0)
         if batch_idx == 0:
             self.images = []
@@ -157,9 +160,15 @@ class LogAudioCallback(Callback):
                     for idx, (d, w, w_hat) in enumerate(zip(self.dry_audio, self.wet_audio, self.wet_hat_audio)):
                         columns.append(f"idx_{idx}")
                         if self.log_dry_audio:
-                            data["dry"].append(wandb.Audio(d, caption=f"dry_{idx}", sample_rate=int(pl_module.sr)))
-                        data["wet"].append(wandb.Audio(w, caption=f"wet_{idx}", sample_rate=int(pl_module.sr)))
-                        data["wet_hat"].append(wandb.Audio(w_hat, caption=f"wet_hat_{idx}", sample_rate=int(pl_module.sr)))
+                            data["dry"].append(wandb.Audio(d,
+                                                           caption=f"dry_{idx}",
+                                                           sample_rate=int(pl_module.sr)))
+                        data["wet"].append(wandb.Audio(w,
+                                                       caption=f"wet_{idx}",
+                                                       sample_rate=int(pl_module.sr)))
+                        data["wet_hat"].append(wandb.Audio(w_hat,
+                                                           caption=f"wet_hat_{idx}",
+                                                           sample_rate=int(pl_module.sr)))
 
                     data = list(data.values())
                     logger.log_table(key="audio", columns=columns, data=data, step=trainer.global_step)
