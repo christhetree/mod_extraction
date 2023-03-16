@@ -3,6 +3,7 @@ import os
 from collections import defaultdict
 from typing import Any, Dict, Optional
 
+import torch as tr
 import wandb
 from matplotlib import pyplot as plt
 from pytorch_lightning import Trainer, Callback, LightningModule
@@ -53,7 +54,9 @@ class LogSpecAndModSigCallback(Callback):
         wet = data_dict["wet"]
         wet_hat = data_dict.get("wet_hat", None)
         mod_sig_hat = data_dict["mod_sig_hat"]
-        mod_sig = data_dict["mod_sig"]
+        mod_sig = data_dict.get("mod_sig", None)
+        if mod_sig is None:
+            mod_sig = tr.zeros_like(mod_sig_hat)  # TODO(cm)
         n_batches = mod_sig.size(0)
         if batch_idx == 0:
             self.images = []
@@ -65,10 +68,12 @@ class LogSpecAndModSigCallback(Callback):
                         plot_spectrogram(w_hat, ax[1], sr=pl_module.sr)
                     else:
                         fig, ax = plt.subplots(nrows=2, figsize=(6, 10), sharex="all", squeeze=True)
-                    params = {k: v[idx] for k, v in fx_params.items()}
-                    title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
-                                       if k not in {"mix", "rate_hz"}])
-                    title = f"{idx}: {title}"
+                    title = f"idx_{idx}"
+                    if fx_params is not None:
+                        params = {k: v[idx] for k, v in fx_params.items()}
+                        title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
+                                           if k not in {"mix", "rate_hz"}])
+                        title = f"{idx}: {title}"
                     w = wet[idx]
                     spec = plot_spectrogram(w, ax[0], title, sr=pl_module.sr)
                     n_frames = spec.size(-1)
@@ -129,10 +134,12 @@ class LogAudioCallback(Callback):
                     d = dry[idx]
                     w = wet[idx]
                     w_hat = wet_hat[idx]
-                    params = {k: v[idx] for k, v in fx_params.items()}
-                    title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
-                                       if k not in {"mix", "rate_hz"}])
-                    title = f"{idx}: {title}"
+                    title = f"idx_{idx}"
+                    if fx_params is not None:
+                        params = {k: v[idx] for k, v in fx_params.items()}
+                        title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
+                                           if k not in {"mix", "rate_hz"}])
+                        title = f"{idx}: {title}"
                     if self.log_dry_audio:
                         waveforms = [d, w, w_hat]
                         labels = ["dry", "wet", "wet_hat"]

@@ -2,8 +2,10 @@ seed_everything: 44
 
 custom:
   project_name: lfo_tcn
-  model_name: lstm_48_ph_all2_egfx
+#  model_name: lstm_48_ms_ph_all2_egfx
+  model_name: lstm_48_fr_ph_all2_egfx
   dataset_name: egfx_ph
+#  dataset_name: egfx_ch
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
@@ -11,25 +13,23 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [2]
+  devices: [1]
   max_epochs: 100
 
 data:
-  class_path: lfo_tcn.data_modules.RandomAudioChunkDataModule
+  class_path: lfo_tcn.data_modules.RandomAudioChunkDryWetDataModule
   init_args:
     batch_size: 1024
-    num_workers: 12
+    num_workers: 4
     use_debug_mode: false
-#    train_dir: ../data/egfx_clean/train
-#    val_dir: ../data/egfx_clean/val
-    train_dir: ../data/egfx_phaser/train
-    val_dir: ../data/egfx_phaser/val
-#    train_dir: ../data/egfx_flanger/train
-#    val_dir: ../data/egfx_flanger/val
-#    train_dir: ../data/egfx_chorus/train
-#    val_dir: ../data/egfx_chorus/val
-#    train_dir: ../data/idmt_4/train
-#    val_dir: ../data/idmt_4/val
+    dry_train_dir: ../data/egfx_clean/train
+    dry_val_dir: ../data/egfx_clean/val
+    wet_train_dir: ../data/egfx_phaser/train
+    wet_val_dir: ../data/egfx_phaser/val
+#    wet_train_dir: ../data/egfx_flanger/train
+#    wet_val_dir: ../data/egfx_flanger/val
+#    wet_train_dir: ../data/egfx_chorus/train
+#    wet_val_dir: ../data/egfx_chorus/val
     train_num_examples_per_epoch: 80000
     val_num_examples_per_epoch: 20000
     n_samples: 96000
@@ -38,7 +38,8 @@ data:
     silence_fraction_allowed: 0.1
     silence_threshold_energy: 1e-6
     n_retries: 10
-    check_dataset: true
+    check_dataset: false
+    end_buffer_n_samples: 4000
 
 model:
   class_path: lfo_tcn.lightning.TBPTTLFOEffectModeling
@@ -54,6 +55,7 @@ model:
         latent_dim: 1
     lfo_model: ../configs/models/spectral_tcn.yml
     lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
+    freeze_lfo_model: true
     param_model: null
     loss_dict:
       l1: 1.0

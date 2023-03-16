@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, Tuple
 
 import torch as tr
 import torchaudio
@@ -33,6 +33,7 @@ class RandomAudioChunkDataset(Dataset):
             use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
+            end_buffer_n_samples: int = 0,
     ) -> None:
         super().__init__()
         self.input_dir = input_dir
@@ -46,17 +47,10 @@ class RandomAudioChunkDataset(Dataset):
         self.use_debug_mode = use_debug_mode
         self.check_dataset = check_dataset
         self.min_suitable_files_fraction = min_suitable_files_fraction
+        self.end_buffer_n_samples = end_buffer_n_samples
         self.max_n_consecutive_silent_samples = int(silence_fraction_allowed * n_samples)
 
-        assert os.path.isdir(input_dir)
-        input_paths = []
-        for root_dir, _, file_names in os.walk(input_dir):
-            for file_name in file_names:
-                if file_name.endswith(ext) and not file_name.startswith("."):
-                    input_paths.append(os.path.join(root_dir, file_name))
-        input_paths = sorted(input_paths)
-        log.info(f"Found {len(input_paths)} input files")
-        assert len(input_paths) > 0
+        input_paths = self.get_file_paths(input_dir, ext)
 
         total_n_samples = 0
         filtered_input_paths = []
@@ -76,16 +70,21 @@ class RandomAudioChunkDataset(Dataset):
 
         self.input_paths = filtered_input_paths
         if check_dataset:
-            assert self.check_dataset_for_suitable_files(self.n_samples, self.min_suitable_files_fraction), \
+            assert self.check_dataset_for_suitable_files(n_samples,
+                                                         min_suitable_files_fraction,
+                                                         end_buffer_n_samples), \
                 "Could not find a suitable non-silent audio chunk in the dataset"
 
-    def check_dataset_for_suitable_files(self, n_samples: int, min_suitable_files_fraction: float) -> bool:
+    def check_dataset_for_suitable_files(self,
+                                         n_samples: int,
+                                         min_suitable_files_fraction: float,
+                                         end_buffer_n_samples: int = 0) -> bool:
         min_n_suitable_files = int(min_suitable_files_fraction * len(self.input_paths))
         min_n_suitable_files = max(1, min_n_suitable_files)
         n_suitable_files = 0
         for file_path in tqdm(self.input_paths):
             for _ in range(self.n_retries):
-                audio_chunk = self.find_audio_chunk_in_file(file_path, n_samples)
+                audio_chunk = self.find_audio_chunk_in_file(file_path, n_samples, end_buffer_n_samples)
                 if audio_chunk is not None:
                     n_suitable_files += 1
                     break
@@ -102,11 +101,14 @@ class RandomAudioChunkDataset(Dataset):
         n_silent = (mean_energies < self.silence_threshold_energy).sum().item()
         return n_silent > 0
 
-    def find_audio_chunk_in_file(self, file_path: str, n_samples: int) -> Optional[T]:
+    def find_audio_chunk_in_file(self,
+                                 file_path: str,
+                                 n_samples: int,
+                                 end_buffer_n_samples: int = 0) -> Optional[Tuple[T, int]]:
         file_n_samples = torchaudio.info(file_path).num_frames
-        if n_samples > file_n_samples:
+        if n_samples > file_n_samples - end_buffer_n_samples:
             return None
-        start_idx = self.randint(0, file_n_samples - n_samples + 1)
+        start_idx = self.randint(0, file_n_samples - n_samples - end_buffer_n_samples + 1)
         audio_chunk, sr = torchaudio.load(
             file_path,
             frame_offset=start_idx,
@@ -115,9 +117,9 @@ class RandomAudioChunkDataset(Dataset):
         if self.check_for_silence(audio_chunk):
             log.debug("Skipping audio chunk because of silence")
             return None
-        return audio_chunk
+        return audio_chunk, start_idx
 
-    def search_dataset_for_audio_chunk(self, n_samples: int) -> T:
+    def search_dataset_for_audio_chunk(self, n_samples: int, end_buffer_n_samples: int = 0) -> (T, str, int, int):
         file_path_pool = list(self.input_paths)
         file_path = self.choice(file_path_pool)
         file_path_pool.remove(file_path)
@@ -125,7 +127,7 @@ class RandomAudioChunkDataset(Dataset):
         n_attempts = 0
 
         while audio_chunk is None:
-            audio_chunk = self.find_audio_chunk_in_file(file_path, n_samples)
+            audio_chunk = self.find_audio_chunk_in_file(file_path, n_samples, end_buffer_n_samples)
             if audio_chunk is None:
                 n_attempts += 1
             if n_attempts >= self.n_retries:
@@ -134,18 +136,33 @@ class RandomAudioChunkDataset(Dataset):
                 file_path_pool.remove(file_path)
                 n_attempts = 0
 
+        audio_chunk, start_idx = audio_chunk
+        ch_idx = 0
         if audio_chunk.size(0) > 1:
             ch_idx = self.randint(0, audio_chunk.size(0))
             audio_chunk = audio_chunk[ch_idx, :].view(1, -1)
 
-        return audio_chunk
+        return audio_chunk, file_path, ch_idx, start_idx
 
     def __len__(self):
         return self.num_examples_per_epoch
 
     def __getitem__(self, _) -> T:
-        audio_chunk = self.search_dataset_for_audio_chunk(self.n_samples)
+        audio_chunk, _, _, _ = self.search_dataset_for_audio_chunk(self.n_samples, self.end_buffer_n_samples)
         return audio_chunk
+
+    @staticmethod
+    def get_file_paths(input_dir: str, ext: str) -> List[str]:
+        assert os.path.isdir(input_dir)
+        input_paths = []
+        for root_dir, _, file_names in os.walk(input_dir):
+            for file_name in file_names:
+                if file_name.endswith(ext) and not file_name.startswith("."):
+                    input_paths.append(os.path.join(root_dir, file_name))
+        input_paths = sorted(input_paths)
+        log.info(f"Found {len(input_paths)} files in {input_dir}")
+        assert len(input_paths) > 0
+        return input_paths
 
     @staticmethod
     def choice(items: List[Any]) -> Any:
@@ -167,6 +184,80 @@ class RandomAudioChunkDataset(Dataset):
         return float(loguniform.rvs(low, high))
 
 
+class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
+    def __init__(
+            self,
+            dry_dir: str,
+            wet_dir: str,
+            n_samples: int,
+            sr: float,
+            ext: str = "wav",
+            num_examples_per_epoch: int = 10000,
+            silence_fraction_allowed: float = 0.1,
+            silence_threshold_energy: float = 1e-6,
+            n_retries: int = 10,
+            use_debug_mode: bool = False,
+            check_dataset: bool = True,
+            min_suitable_files_fraction: int = 0.5,
+            end_buffer_n_samples: int = 0,
+    ) -> None:
+        super().__init__(dry_dir,
+                         n_samples,
+                         sr,
+                         ext,
+                         num_examples_per_epoch,
+                         silence_fraction_allowed,
+                         silence_threshold_energy,
+                         n_retries,
+                         use_debug_mode,
+                         check_dataset,
+                         min_suitable_files_fraction,
+                         end_buffer_n_samples)
+        self.dry_dir = dry_dir
+        self.wet_dir = wet_dir
+        self.end_buffer_n_samples = end_buffer_n_samples
+        all_wet_paths = self.get_file_paths(wet_dir, ext)
+        dry_paths = self.input_paths
+        all_wet_names_to_wet_path = {os.path.basename(p): p for p in all_wet_paths}
+        wet_paths = []
+        name_to_wet_path = {}
+        for dry_p in dry_paths:
+            name = os.path.basename(dry_p)
+            assert name in all_wet_names_to_wet_path, f"Missing wet file: {name}"
+            wet_p = all_wet_names_to_wet_path[name]
+            dry_info = torchaudio.info(dry_p)
+            wet_info = torchaudio.info(wet_p)
+            # if dry_info.num_frames != wet_info.num_frames:
+            #     print(dry_p)
+            #     print(dry_info.num_frames)
+            #     print(wet_info.num_frames)
+            assert dry_info.sample_rate == wet_info.sample_rate, f"Different sample rates: {dry_p}, {wet_p}"
+            assert abs(dry_info.num_frames - wet_info.num_frames) <= end_buffer_n_samples, \
+                f"Different lengths: {dry_p}: {dry_info.num_frames}, {wet_p}: {wet_info.num_frames}"
+            assert dry_info.num_channels == wet_info.num_channels, f"Different channels: {dry_p}, {wet_p}"
+            wet_paths.append(wet_p)
+            name_to_wet_path[name] = wet_p
+        wet_paths = sorted(wet_paths)
+        self.dry_paths = dry_paths
+        self.wet_paths = wet_paths
+        self.name_to_wet_path = name_to_wet_path
+
+    def __getitem__(self, _) -> (T, T):
+        dry_chunk, dry_path, ch_idx, start_idx = self.search_dataset_for_audio_chunk(self.n_samples,
+                                                                                     self.end_buffer_n_samples)
+        dry_name = os.path.basename(dry_path)
+        wet_path = self.name_to_wet_path[dry_name]
+        wet_chunk, _ = torchaudio.load(
+            wet_path,
+            frame_offset=start_idx,
+            num_frames=self.n_samples,
+        )
+        if wet_chunk.size(0) > 1:
+            wet_chunk = wet_chunk[ch_idx, :].view(1, -1)
+        assert dry_chunk.shape == wet_chunk.shape
+        return dry_chunk, wet_chunk
+
+
 class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
     def __init__(
             self,
@@ -182,6 +273,7 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
             use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
+            end_buffer_n_samples: int = 0,
     ) -> None:
         super().__init__(input_dir,
                          n_samples,
@@ -193,7 +285,8 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                          n_retries,
                          use_debug_mode,
                          check_dataset,
-                         min_suitable_files_fraction)
+                         min_suitable_files_fraction,
+                         end_buffer_n_samples)
         self.fx_config = fx_config
 
     def __getitem__(self, _) -> (T, T):
@@ -242,7 +335,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         rate_n_samples = int((self.sr / rate_hz) + 0.5)
         proc_n_samples = self.n_samples + rate_n_samples
 
-        audio_chunk = self.search_dataset_for_audio_chunk(proc_n_samples)
+        audio_chunk, _, _, _ = self.search_dataset_for_audio_chunk(proc_n_samples, self.end_buffer_n_samples)
 
         proc_audio, fx_params = self.apply_pedalboard_phaser(audio_chunk,
                                                              self.sr,

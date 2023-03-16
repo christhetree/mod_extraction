@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import pytorch_lightning as pl
 import torch as tr
@@ -8,7 +8,8 @@ from matplotlib import pyplot as plt
 from torch import Tensor as T
 from torch.utils.data import DataLoader
 
-from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset
+from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
+    RandomAudioChunkDryWetDataset
 from lfo_tcn.fx import FlangerModule
 from lfo_tcn.plotting import plot_spectrogram
 
@@ -32,7 +33,8 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                  n_retries: int = 10,
                  num_workers: int = 0,
                  use_debug_mode: bool = False,
-                 check_dataset: bool = True) -> None:
+                 check_dataset: bool = True,
+                 end_buffer_n_samples: int = 0) -> None:
         super().__init__()
         self.save_hyperparameters()
         log.info(f"\n{self.hparams}")
@@ -52,6 +54,7 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.use_debug_mode = use_debug_mode
         self.check_dataset = check_dataset
+        self.end_buffer_n_samples = end_buffer_n_samples
         self.train_dataset = None
         self.val_dataset = None
 
@@ -59,28 +62,30 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
         if stage == "fit":
             self.train_dataset = RandomAudioChunkDataset(
                 self.train_dir,
-                self.n_samples,
-                self.sr,
-                self.ext,
-                self.train_num_examples_per_epoch,
-                self.silence_fraction_allowed,
-                self.silence_threshold_energy,
-                self.n_retries,
-                self.use_debug_mode,
-                self.check_dataset,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.train_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkDataset(
                 self.val_dir,
-                self.n_samples,
-                self.sr,
-                self.ext,
-                self.val_num_examples_per_epoch,
-                self.silence_fraction_allowed,
-                self.silence_threshold_energy,
-                self.n_retries,
-                self.use_debug_mode,
-                self.check_dataset,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.val_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
             )
 
     def train_dataloader(self) -> DataLoader:
@@ -102,6 +107,85 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
         )
 
 
+class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
+    def __init__(self,
+                 batch_size: int,
+                 dry_train_dir: str,
+                 dry_val_dir: str,
+                 wet_train_dir: str,
+                 wet_val_dir: str,
+                 train_num_examples_per_epoch: int,
+                 val_num_examples_per_epoch: int,
+                 n_samples: int,
+                 sr: float,
+                 ext: str = "wav",
+                 silence_fraction_allowed: float = 0.1,
+                 silence_threshold_energy: float = 1e-6,
+                 n_retries: int = 10,
+                 num_workers: int = 0,
+                 use_debug_mode: bool = False,
+                 check_dataset: bool = True,
+                 end_buffer_n_samples: int = 0) -> None:
+        super().__init__(batch_size,
+                         dry_train_dir,
+                         dry_val_dir,
+                         train_num_examples_per_epoch,
+                         val_num_examples_per_epoch,
+                         n_samples,
+                         sr,
+                         ext,
+                         silence_fraction_allowed,
+                         silence_threshold_energy,
+                         n_retries,
+                         num_workers,
+                         use_debug_mode,
+                         check_dataset,
+                         end_buffer_n_samples)
+        self.save_hyperparameters()
+        self.dry_train_dir = dry_train_dir
+        self.dry_val_dir = dry_val_dir
+        self.wet_train_dir = wet_train_dir
+        self.wet_val_dir = wet_val_dir
+
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.train_dataset = RandomAudioChunkDryWetDataset(
+                self.dry_train_dir,
+                self.wet_train_dir,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.train_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
+            )
+        if stage == "validate" or "fit":
+            self.val_dataset = RandomAudioChunkDryWetDataset(
+                self.dry_val_dir,
+                self.wet_val_dir,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.val_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
+            )
+
+    def on_before_batch_transfer(self,
+                                 batch: (T, T),
+                                 dataloader_idx: int) -> (T, T, Optional[T], Optional[Dict[str, T]]):
+        dry, wet = batch
+        return dry, wet, None, None
+
+
 class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
     def __init__(self,
                  fx_config: Dict[str, Any],
@@ -118,7 +202,8 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                  n_retries: int = 10,
                  num_workers: int = 0,
                  use_debug_mode: bool = False,
-                 check_dataset: bool = True) -> None:
+                 check_dataset: bool = True,
+                 end_buffer_n_samples: int = 0) -> None:
         super().__init__(batch_size,
                          train_dir,
                          val_dir,
@@ -132,7 +217,8 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                          n_retries,
                          num_workers,
                          use_debug_mode,
-                         check_dataset)
+                         check_dataset,
+                         end_buffer_n_samples)
         self.save_hyperparameters()
         self.fx_config = fx_config
 
@@ -141,29 +227,31 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
             self.train_dataset = PedalboardPhaserDataset(
                 self.fx_config,
                 self.train_dir,
-                self.n_samples,
-                self.sr,
-                self.ext,
-                self.train_num_examples_per_epoch,
-                self.silence_fraction_allowed,
-                self.silence_threshold_energy,
-                self.n_retries,
-                self.use_debug_mode,
-                self.check_dataset,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.train_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
             )
         if stage == "validate" or "fit":
             self.val_dataset = PedalboardPhaserDataset(
                 self.fx_config,
                 self.val_dir,
-                self.n_samples,
-                self.sr,
-                self.ext,
-                self.val_num_examples_per_epoch,
-                self.silence_fraction_allowed,
-                self.silence_threshold_energy,
-                self.n_retries,
-                self.use_debug_mode,
-                self.check_dataset,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.val_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
             )
 
 
@@ -182,29 +270,31 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
             self.train_dataset = RandomAudioChunkAndModSigDataset(
                 self.fx_config,
                 self.train_dir,
-                self.n_samples,
-                self.sr,
-                self.ext,
-                self.train_num_examples_per_epoch,
-                self.silence_fraction_allowed,
-                self.silence_threshold_energy,
-                self.n_retries,
-                self.use_debug_mode,
-                self.check_dataset,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.train_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkAndModSigDataset(
                 self.fx_config,
                 self.val_dir,
-                self.n_samples,
-                self.sr,
-                self.ext,
-                self.val_num_examples_per_epoch,
-                self.silence_fraction_allowed,
-                self.silence_threshold_energy,
-                self.n_retries,
-                self.use_debug_mode,
-                self.check_dataset,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.val_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
             )
 
     def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):

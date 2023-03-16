@@ -34,6 +34,7 @@ class BaseLightingModule(pl.LightningModule):
         loss = None
         for (name, weighting), loss_value in zip(self.loss_dict.items(), loss_values):
             if should_log:
+                # TODO(cm): log batch size
                 self.log(
                     f"{prefix}/{name}",
                     loss_value,
@@ -158,8 +159,7 @@ class LFOEffectModeling(BaseLightingModule):
 
             if mod_sig is not None and mod_sig.size(-1) != mod_sig_hat.size(-1):
                 mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
-
-            assert mod_sig.shape == mod_sig_hat.shape
+                assert mod_sig.shape == mod_sig_hat.shape
             return mod_sig_hat, mod_sig
 
     def common_step(self,
@@ -210,6 +210,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                  effect_model: HiddenStateModel,
                  lfo_model: Optional[nn.Module] = None,
                  lfo_model_weights_path: Optional[str] = None,
+                 freeze_lfo_model: bool = True,
                  param_model: Optional[nn.Module] = None,
                  sr: float = 44100,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
@@ -219,8 +220,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         super().__init__(effect_model,
                          lfo_model,
                          lfo_model_weights_path,
-                         # freeze_lfo_model=True,
-                         freeze_lfo_model=False,
+                         freeze_lfo_model=freeze_lfo_model,
                          sr=sr,
                          loss_dict=loss_dict)
         self.param_model = param_model
