@@ -1,7 +1,9 @@
 import logging
 import os
+from typing import Union
 
 import torch as tr
+import torchaudio
 from torch import Tensor as T, nn
 
 logging.basicConfig()
@@ -13,7 +15,8 @@ def make_mod_signal(n_samples: int,
                     sr: float,
                     freq: float,
                     phase: float = 0.0,
-                    shape: str = "cos") -> T:
+                    shape: str = "cos",
+                    exp: float = 1.0) -> T:
     assert n_samples > 0
     assert 0.0 < freq < sr / 2.0
     assert -2 * tr.pi <= phase <= 2 * tr.pi
@@ -21,114 +24,179 @@ def make_mod_signal(n_samples: int,
     if shape in {"rect_cos", "inv_rect_cos"}:
         # Rectified sine waves have double the frequency
         freq /= 2.0
+    assert exp > 0
     argument = tr.cumsum(2 * tr.pi * tr.full((n_samples,), freq) / sr, dim=0) + phase
+    saw = tr.remainder(argument, 2 * tr.pi) / (2 * tr.pi)
 
     if shape == "cos":
-        return (tr.cos(argument + tr.pi) + 1.0) / 2.0
-    if shape == "rect_cos":
-        return tr.abs(tr.cos(argument + tr.pi))
-    if shape == "inv_rect_cos":
-        return -tr.abs(tr.cos(argument + tr.pi)) + 1.0
-    if shape == "sqr":
+        mod_sig = (tr.cos(argument + tr.pi) + 1.0) / 2.0
+    elif shape == "rect_cos":
+        mod_sig = tr.abs(tr.cos(argument + tr.pi))
+    elif shape == "inv_rect_cos":
+        mod_sig = -tr.abs(tr.cos(argument + tr.pi)) + 1.0
+    elif shape == "sqr":
         cos = tr.cos(argument + tr.pi)
         sqr = tr.sign(cos)
-        return (sqr + 1.0) / 2.0
-    saw = tr.remainder(argument, 2 * tr.pi) / (2 * tr.pi)
-    if shape == "saw":
-        return saw
-    if shape == "rsaw":
-        return 1.0 - saw
-    tri = 2 * saw
-    tri = tr.where(tri > 1.0, 2.0 - tri, tri)
-    return tri
+        mod_sig = (sqr + 1.0) / 2.0
+    elif shape == "saw":
+        mod_sig = saw
+    elif shape == "rsaw":
+        mod_sig = 1.0 - saw
+    elif shape == "tri":
+        tri = 2 * saw
+        mod_sig = tr.where(tri > 1.0, 2.0 - tri, tri)
+    else:
+        raise ValueError("Unsupported shape")
+
+    if exp != 1.0:
+        mod_sig = mod_sig ** exp
+    return mod_sig
 
 
-def apply_tremolo(x: T, mod_sig: T, mix: float = 1.0) -> T:
-    assert x.size(-1) == mod_sig.size(-1)
-    assert 0.0 <= mix <= 1.0
-
-    return ((1.0 - mix) * x) + (mix * mod_sig * x)
-
-
-def apply_flanger(x: T,
-                  mod_sig: T,
-                  delay_buf: T,
-                  out_buf: T,
-                  max_delay_samples: int,
-                  feedback: float = 0.0,
-                  width: float = 1.0,
-                  depth: float = 1.0,
-                  mix: float = 1.0) -> T:
-                  # max_delay_ms: float = 10.0,
-                  # sr: float = 44100) -> T:
+def apply_tremolo(x: T, mod_sig: T, mix: Union[float, T] = 1.0) -> T:
     assert x.ndim == 3
     assert x.size(0) == mod_sig.size(0)
     assert x.size(-1) == mod_sig.size(-1)
-    assert 0.0 <= width <= 1.0
-    assert 0.0 <= feedback < 1.0
-    assert 0.0 <= depth <= 1.0
-    assert 0.0 <= mix <= 1.0
-    if width == 0.0 or depth == 0.0 or mix == 0.0:
-        return x
-    batch_size, n_ch, n_samples = x.shape
     if mod_sig.ndim == 2:
-        mod_sig = mod_sig.unsqueeze(1).expand(-1, n_ch, -1)
-
-    # max_delay_samples = int(((max_delay_ms / 1000.0) * sr) + 0.5)
-    # delay_buf = tr.zeros((batch_size, n_ch, max_delay_samples))
-    # out_buf = tr.zeros_like(x)
-
-    delay_write_idx = 0
-    for idx in range(n_samples):
-        audio_val = x[:, :, idx]
-        mod_val = mod_sig[:, :, idx]
-        delay_samples = max_delay_samples * width * mod_val
-        delay_read_idx = (delay_write_idx - delay_samples + max_delay_samples) % max_delay_samples
-        delay_read_fraction = delay_read_idx - tr.floor(delay_read_idx)
-        prev_idx = tr.floor(delay_read_idx).to(tr.long).unsqueeze(-1)
-        next_idx = (prev_idx + 1) % max_delay_samples
-        prev_val = tr.gather(delay_buf, dim=-1, index=prev_idx).squeeze(-1)
-        next_val = tr.gather(delay_buf, dim=-1, index=next_idx).squeeze(-1)
-        interp_val = (delay_read_fraction * next_val) + ((1.0 - delay_read_fraction) * prev_val)
-        delay_buf[:, :, delay_write_idx] = audio_val + (feedback * interp_val)
-        out_buf[:, :, idx] = audio_val + (depth * interp_val)
-
-        delay_write_idx += 1
-        if delay_write_idx == max_delay_samples:
-            delay_write_idx = 0
-
-    out_buf = ((1.0 - mix) * x) + (mix * out_buf)
-    return out_buf
+        mod_sig = mod_sig.unsqueeze(1).expand(-1, x.size(1), -1)
+    if isinstance(mix, T):
+        assert mix.size(0) == x.size(0)
+    assert 0.0 <= mix <= 1.0
+    return ((1.0 - mix) * x) + (mix * mod_sig * x)
 
 
-class FlangerModule(nn.Module):
+class MonoFlangerChorusModule(nn.Module):
     def __init__(self,
                  batch_size: int,
                  n_ch: int,
                  n_samples: int,
-                 max_delay_ms: float = 10.0,
-                 sr: float = 44100) -> None:
+                 sr: float,
+                 min_delay_ms: float,
+                 max_lfo_delay_ms: float) -> None:
         super().__init__()
-        self.max_delay_samples = int(((max_delay_ms / 1000.0) * sr) + 0.5)
+        self.min_delay_samples = int(((min_delay_ms / 1000.0) * sr) + 0.5)
+        self.max_lfo_delay_samples = int(((max_lfo_delay_ms / 1000.0) * sr) + 0.5)
+        self.max_delay_samples = self.min_delay_samples + self.max_lfo_delay_samples
         self.register_buffer("delay_buf", tr.zeros((batch_size, n_ch, self.max_delay_samples)))
         self.register_buffer("out_buf", tr.zeros((batch_size, n_ch, n_samples)))
+
+    def check_param(self,
+                    param: Union[float, T],
+                    bs: int,
+                    out_n_dim: int = 2,
+                    can_be_one: bool = True) -> Union[float, T]:
+        if isinstance(param, T):
+            assert param.shape == (bs,)
+            assert param.min() >= 0
+            if can_be_one:
+                assert param.max() <= 1.0
+            else:
+                assert param.max() < 1.0
+            if out_n_dim == 2:
+                param = param.view(-1, 1)
+            elif out_n_dim == 3:
+                param = param.view(-1, 1, 1)
+            else:
+                raise ValueError
+        else:
+            assert param >= 0
+            if can_be_one:
+                assert param <= 1.0
+            else:
+                assert param < 1.0
+        return param
+
+    def apply_effect(self,
+                     x: T,
+                     mod_sig: T,
+                     feedback: Union[float, T],
+                     width: Union[float, T],
+                     depth: Union[float, T],
+                     mix: Union[float, T]) -> T:
+        assert x.ndim == 3
+        batch_size, n_ch, n_samples = x.shape
+        assert mod_sig.size(0) == batch_size
+        assert mod_sig.size(-1) == n_samples
+        if mod_sig.ndim == 2:
+            mod_sig = mod_sig.unsqueeze(1).expand(-1, n_ch, -1)
+        feedback = self.check_param(feedback, batch_size, out_n_dim=2, can_be_one=False)
+        width = self.check_param(width, batch_size, out_n_dim=2, can_be_one=True)
+        depth = self.check_param(depth, batch_size, out_n_dim=2, can_be_one=True)
+        mix = self.check_param(mix, batch_size, out_n_dim=3, can_be_one=True)
+
+        self.delay_buf.fill_(0)
+        self.out_buf.fill_(0)
+        delay_write_idx = 0
+        from tqdm import tqdm
+        for idx in tqdm(range(n_samples)):
+            audio_val = x[:, :, idx]
+            mod_val = mod_sig[:, :, idx]
+            delay_samples = (self.max_lfo_delay_samples * width * mod_val) + self.min_delay_samples
+            delay_read_idx = (delay_write_idx - delay_samples + self.max_delay_samples) % self.max_delay_samples
+            delay_read_fraction = delay_read_idx - tr.floor(delay_read_idx)
+            prev_idx = tr.floor(delay_read_idx).to(tr.long).unsqueeze(-1)
+            next_idx = (prev_idx + 1) % self.max_delay_samples
+            prev_val = tr.gather(self.delay_buf, dim=-1, index=prev_idx).squeeze(-1)
+            next_val = tr.gather(self.delay_buf, dim=-1, index=next_idx).squeeze(-1)
+            interp_val = (delay_read_fraction * next_val) + ((1.0 - delay_read_fraction) * prev_val)
+            self.delay_buf[:, :, delay_write_idx] = audio_val + (feedback * interp_val)
+            self.out_buf[:, :, idx] = audio_val + (depth * interp_val)
+
+            delay_write_idx += 1
+            if delay_write_idx == self.max_delay_samples:
+                delay_write_idx = 0
+
+        out_buf = ((1.0 - mix) * x) + (mix * self.out_buf)
+        return out_buf
 
     def forward(self,
                 x: T,
                 mod_sig: T,
-                feedback: float = 0.0,
-                width: float = 1.0,
-                depth: float = 1.0,
-                mix: float = 1.0) -> T:
+                feedback: Union[float, T] = 0.0,
+                width: Union[float, T] = 1.0,
+                depth: Union[float, T] = 1.0,
+                mix: Union[float, T] = 1.0) -> T:
         with tr.no_grad():
-            self.delay_buf.fill_(0)
-            self.out_buf.fill_(0)
-            return apply_flanger(x,
-                                 mod_sig,
-                                 self.delay_buf,
-                                 self.out_buf,
-                                 self.max_delay_samples,
-                                 feedback,
-                                 width,
-                                 depth,
-                                 mix)
+            return self.apply_effect(x, mod_sig, feedback, width, depth, mix)
+
+
+if __name__ == "__main__":
+    # audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__pop_2_140BPM.wav")
+    audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__latin_1_160BPM.wav")
+    n_samples = sr * 4
+    audio = audio[:, :n_samples]
+    # audio = make_mod_signal(n_samples, sr, 220.0, shape="saw", exp=1.0)
+    audio = audio.view(1, 1, -1).repeat(3, 1, 1)
+
+    mod_sig_a = make_mod_signal(n_samples, sr, 0.1, phase=0, shape="cos", exp=1.0)
+    mod_sig_b = make_mod_signal(n_samples, sr, 1.0, phase=tr.pi, shape="tri", exp=1.0)
+    mod_sig_c = make_mod_signal(n_samples, sr, 2.0, phase=tr.pi, shape="saw", exp=3.0)
+
+    # plt.plot(mod_sig_a)
+    # plt.show()
+
+    # mod_sig = tr.stack([mod_sig_a, mod_sig_b, mod_sig_c], dim=0)
+    mod_sig = tr.stack([mod_sig_b, mod_sig_b, mod_sig_b], dim=0)
+    flanger = MonoFlangerChorusModule(3, 1, n_samples, sr, 0.0, 5.0)
+    chorus = MonoFlangerChorusModule(3, 1, n_samples, sr, 30.0, 10.0)
+
+    # feedback = tr.Tensor([0.0, 0.4, 0.7])
+    # depth = tr.Tensor([0.0, 0.5, 1.0])
+    # width = tr.Tensor([0.0, 0.5, 1.0])
+    mix = tr.Tensor([0.0, 0.5, 1.0])
+    # width = 1.0
+
+    print(f"audio in min = {tr.min(audio):.3f}")
+    print(f"audio in max = {tr.max(audio):.3f}")
+    y_flanger = flanger(audio, mod_sig, mix=mix)
+    print(f"y    out min = {tr.min(y_flanger.squeeze(1), dim=-1)[0]}")
+    print(f"y    out max = {tr.max(y_flanger.squeeze(1), dim=-1)[0]}")
+
+    # y_chorus = chorus(audio, mod_sig, feedback=feedback)
+
+    from lfo_tcn.plotting import plot_spectrogram
+    for idx in range(3):
+        y_f = y_flanger[idx]
+        plot_spectrogram(y_f, title=f"flanger_{idx}", sr=sr, save_name=f"flanger_{idx}")
+        # y_c = y_chorus[idx]
+        # plot_spectrogram(y_c, title=f"chorus_{idx}", sr=sr, save_name=f"chorus_{idx}")

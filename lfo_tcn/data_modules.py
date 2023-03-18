@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
     RandomAudioChunkDryWetDataset
-from lfo_tcn.fx import FlangerModule
+from lfo_tcn.fx import MonoFlangerChorusModule
 from lfo_tcn.plotting import plot_spectrogram
 
 logging.basicConfig()
@@ -261,11 +261,12 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
         self.flanger = None
 
     def setup(self, stage: str) -> None:
-        self.flanger = FlangerModule(batch_size=self.batch_size,
-                                     n_ch=1,
-                                     n_samples=self.n_samples,
-                                     max_delay_ms=self.fx_config["flanger"]["max_delay_ms"],
-                                     sr=self.sr)
+        self.flanger = MonoFlangerChorusModule(batch_size=self.batch_size,
+                                               n_ch=1,
+                                               n_samples=self.n_samples,
+                                               sr=self.sr,
+                                               min_delay_ms=0.0,
+                                               max_lfo_delay_ms=self.fx_config["flanger"]["max_delay_ms"])
         if stage == "fit":
             self.train_dataset = RandomAudioChunkAndModSigDataset(
                 self.fx_config,
