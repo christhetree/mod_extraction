@@ -65,17 +65,21 @@ class LFOExtraction(BaseLightingModule):
     def __init__(self,
                  model: nn.Module,
                  sr: float,
+                 sub_batch_size: Optional[int] = None,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
         self.save_hyperparameters(ignore=["model"])
         log.info(f"\n{self.hparams}")
         self.model = model
         self.sr = sr
+        self.sub_batch_size = sub_batch_size
 
     def forward(self, x: T) -> T:
         return self.model(x)
 
-    def common_step(self, batch: (T, T, T, Dict[str, T]), is_training: bool) -> (T, Dict[str, T], Dict[str, T]):
+    def common_step(self,
+                    batch: (Optional[T], T, T, Dict[str, T]),
+                    is_training: bool) -> (T, Dict[str, T], Dict[str, T]):
         prefix = "train" if is_training else "val"
         dry, wet, mod_sig, fx_params = batch
         mod_sig_hat = self.model(wet).squeeze(1)
@@ -85,14 +89,16 @@ class LFOExtraction(BaseLightingModule):
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
 
         data_dict = {
-            "dry": dry.detach().float().cpu(),
             "wet": wet.detach().float().cpu(),
             "mod_sig": mod_sig.detach().float().cpu(),
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
         }
+        if dry is not None:
+            data_dict["dry"] = dry.detach().float().cpu(),
 
         fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
 
+        # TODO(cm)
         # for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],
         #                                       data_dict["wet"],
         #                                       data_dict["mod_sig_hat"])):
@@ -107,12 +113,46 @@ class LFOExtraction(BaseLightingModule):
 
         return loss, data_dict, fx_params
 
+    def sub_batch_size_common_step(self,
+                                   batch: (Optional[T], T, T, Dict[str, T]),
+                                   is_training: bool) -> (T, Dict[str, T], Dict[str, T]):
+        dry, wet, mod_sig, fx_params = batch
+        inferred_bs = mod_sig.size(0)
+        assert inferred_bs >= self.sub_batch_size
+        assert inferred_bs % self.sub_batch_size == 0
+        losses = []
+        out_data_dict = None
+        out_fx_params = None
+        for start_idx in range(0, inferred_bs, self.sub_batch_size):
+            end_idx = start_idx + self.sub_batch_size
+            sub_dry = None
+            if dry is not None:
+                sub_dry = dry[start_idx:end_idx, ...]
+            sub_wet = wet[start_idx:end_idx, ...]
+            sub_mod_sig = mod_sig[start_idx:end_idx, ...]
+            sub_fx_params = {k: v[start_idx:end_idx, ...] for k, v in fx_params.items()}
+            sub_batch = (sub_dry, sub_wet, sub_mod_sig, sub_fx_params)
+            loss, out_data_dict, out_fx_params = self.common_step(sub_batch, is_training=is_training)
+            losses.append(loss)
+        assert losses
+        assert out_data_dict is not None
+        assert out_fx_params is not None
+        loss = tr.stack(losses, dim=0).mean(dim=0)
+        return loss, out_data_dict, out_fx_params
+
     def training_step(self, batch: (T, T, T, Dict[str, T]), batch_idx: int) -> T:
-        loss, _, _ = self.common_step(batch, is_training=True)
+        if self.sub_batch_size is None:
+            loss, _, _ = self.common_step(batch, is_training=True)
+        else:
+            loss, _, _ = self.sub_batch_size_common_step(batch, is_training=True)
         return loss
 
     def validation_step(self, batch: (T, T, T, Dict[str, T]), batch_idx: int) -> (T, Dict[str, T], Dict[str, T]):
-        return self.common_step(batch, is_training=False)
+        if self.sub_batch_size is None:
+            loss, data_dict, fx_params = self.common_step(batch, is_training=False)
+        else:
+            loss, data_dict, fx_params = self.sub_batch_size_common_step(batch, is_training=False)
+        return loss, data_dict, fx_params
 
 
 class LFOEffectModeling(BaseLightingModule):

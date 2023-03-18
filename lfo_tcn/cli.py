@@ -22,7 +22,7 @@ class CustomLightningCLI(LightningCLI):
             # TODO(cm): use text instead?
             LearningRateMonitor(logging_interval="step"),
             LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
-            LogAudioCallback(n_examples=4, log_dry_audio=True),
+            # LogAudioCallback(n_examples=4, log_dry_audio=True),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
@@ -57,9 +57,9 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
 
-        # parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
-        parser.link_arguments("data.init_args.n_samples", "model.init_args.lfo_model.init_args.n_samples")  # TODO
-        parser.link_arguments("data.init_args.n_samples", "model.init_args.param_model.init_args.n_samples")  # TODO
+        parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
+        # parser.link_arguments("data.init_args.n_samples", "model.init_args.lfo_model.init_args.n_samples")  # TODO
+        # parser.link_arguments("data.init_args.n_samples", "model.init_args.param_model.init_args.n_samples")  # TODO
 
         parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 

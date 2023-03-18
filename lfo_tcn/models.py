@@ -17,7 +17,7 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 class SpectralTCN(nn.Module):
     def __init__(self,
-                 n_samples: int = 88100,
+                 n_samples: int = 96000,
                  n_fft: int = 1024,
                  hop_len: int = 256,
                  kernel_size: int = 13,
@@ -197,11 +197,11 @@ class LSTMEffectModel(HiddenStateModel):
 
 
 if __name__ == "__main__":
+    model = SpectralTCN()
+    # model = SpectralDSTCN()
     # model = LSTMEffectModel()
-    # audio = tr.rand((3, 1, 1024))
+
     # latent = tr.rand((3, 1, 1024))
-    # y = model(audio, latent)
-    model = SpectralDSTCN()
-    audio = tr.rand((3, 1, 88100))
+    audio = tr.rand((3, 1, 96000))
     y = model(audio)
     print(y.shape)

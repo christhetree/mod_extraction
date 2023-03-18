@@ -2,42 +2,40 @@ seed_everything: 42
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_tcn_1_ln
-#  dataset_name: ph_rate_idmt_4
+  model_name: lfo_tcn_fdl1_l1-1
+#  dataset_name: ph_rate_egfx_clean
   dataset_name: ph_all2_egfx_clean
+#  dataset_name: ph_rate_idmt_4
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
-#  use_wandb: false
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [1]
+  devices: [6]
   max_epochs: 100
 
 data:
   class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
   init_args:
-    batch_size: 512
-    num_workers: 16
+    batch_size: 32
+    num_workers: 12
     use_debug_mode: false
     train_dir: ../data/egfx_clean/train
     val_dir: ../data/egfx_clean/val
-#    train_dir: ../data/egfx_phaser/train
-#    val_dir: ../data/egfx_phaser/val
 #    train_dir: ../data/idmt_4/train
 #    val_dir: ../data/idmt_4/val
     train_num_examples_per_epoch: 80000
     val_num_examples_per_epoch: 20000
-#    n_samples: 88100
     n_samples: 96000
-#    sr: 44100
+#    n_samples: 88100
     sr: 48000
+#    sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-#    silence_threshold_energy: 1e-4
     silence_threshold_energy: 1e-6
+#    silence_threshold_energy: 1e-4
     n_retries: 10
     check_dataset: false
     fx_config:
@@ -70,15 +68,19 @@ data:
         mix:
           min: 1.0
           max: 1.0
-#          min: 0.0
-#          max: 0.0
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
     model: ../configs/models/spectral_tcn.yml
     loss_dict:
-      l1: 1.0
+      fdl1: 1.0
+#      fdl1: 0.5
+#      fdl1: 0.0
+#      l1: 1.0
+#      l1: 0.5
+      l1: 0.1
+#      l1: 0.0
       mse: 0.0
 
 optimizer: ../configs/opt/adam_w.yml

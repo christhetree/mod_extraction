@@ -66,6 +66,19 @@ class DCLoss(torch.nn.Module):
         return losses
 
 
+class FirstDerivativeL1Loss(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.l1 = nn.L1Loss()
+
+    def forward(self, input: T, target: T) -> T:
+        input_prime = input[..., 1:] - input[..., :-1]
+        target_prime = target[..., 1:] - target[..., :-1]
+        l1 = self.l1(input_prime, target_prime)
+        loss = l1 / 2.0  # l1 of the first derivative can be twice as large
+        return loss
+
+
 def apply_reduction(losses, reduction="none"):
     """Apply reduction to collection of losses."""
     if reduction == "mean":
@@ -78,6 +91,8 @@ def apply_reduction(losses, reduction="none"):
 def get_loss_func_by_name(name: str) -> nn.Module:
     if name == "l1":
         return nn.L1Loss()
+    elif name == "fdl1":
+        return FirstDerivativeL1Loss()
     elif name == "mse":
         return nn.MSELoss()
     elif name == "esr":
