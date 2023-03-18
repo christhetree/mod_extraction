@@ -120,31 +120,34 @@ class MonoFlangerChorusModule(nn.Module):
         if mod_sig.ndim == 2:
             mod_sig = mod_sig.unsqueeze(1).expand(-1, n_ch, -1)
         feedback = self.check_param(feedback, batch_size, out_n_dim=2, can_be_one=False)
-        width = self.check_param(width, batch_size, out_n_dim=2, can_be_one=True)
+        width = self.check_param(width, batch_size, out_n_dim=3, can_be_one=True)
         depth = self.check_param(depth, batch_size, out_n_dim=2, can_be_one=True)
         mix = self.check_param(mix, batch_size, out_n_dim=3, can_be_one=True)
 
         self.delay_buf.fill_(0)
         self.out_buf.fill_(0)
-        delay_write_idx = 0
+
+        delay_write_idx_all = tr.arange(0, n_samples) % self.max_delay_samples
+        delay_write_idx_all = delay_write_idx_all.view(1, 1, -1).expand(batch_size, n_ch, -1)
+        delay_samples_all = (self.max_lfo_delay_samples * width * mod_sig) + self.min_delay_samples
+        delay_read_idx_all = (delay_write_idx_all - delay_samples_all + self.max_delay_samples) % self.max_delay_samples
+        delay_read_fraction_all = delay_read_idx_all - tr.floor(delay_read_idx_all)
+        prev_idx_all = tr.floor(delay_read_idx_all).to(tr.long)
+        next_idx_all = (prev_idx_all + 1) % self.max_delay_samples
+
         from tqdm import tqdm
         for idx in tqdm(range(n_samples)):
             audio_val = x[:, :, idx]
-            mod_val = mod_sig[:, :, idx]
-            delay_samples = (self.max_lfo_delay_samples * width * mod_val) + self.min_delay_samples
-            delay_read_idx = (delay_write_idx - delay_samples + self.max_delay_samples) % self.max_delay_samples
-            delay_read_fraction = delay_read_idx - tr.floor(delay_read_idx)
-            prev_idx = tr.floor(delay_read_idx).to(tr.long).unsqueeze(-1)
-            next_idx = (prev_idx + 1) % self.max_delay_samples
+            prev_idx = prev_idx_all[:, :, idx].unsqueeze(-1)
+            next_idx = next_idx_all[:, :, idx].unsqueeze(-1)
+            delay_read_fraction = delay_read_fraction_all[:, :, idx]
+            delay_write_idx = delay_write_idx_all[0, 0, idx]
+
             prev_val = tr.gather(self.delay_buf, dim=-1, index=prev_idx).squeeze(-1)
             next_val = tr.gather(self.delay_buf, dim=-1, index=next_idx).squeeze(-1)
             interp_val = (delay_read_fraction * next_val) + ((1.0 - delay_read_fraction) * prev_val)
             self.delay_buf[:, :, delay_write_idx] = audio_val + (feedback * interp_val)
             self.out_buf[:, :, idx] = audio_val + (depth * interp_val)
-
-            delay_write_idx += 1
-            if delay_write_idx == self.max_delay_samples:
-                delay_write_idx = 0
 
         out_buf = ((1.0 - mix) * x) + (mix * self.out_buf)
         return out_buf
@@ -161,8 +164,8 @@ class MonoFlangerChorusModule(nn.Module):
 
 
 if __name__ == "__main__":
-    # audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__pop_2_140BPM.wav")
-    audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__latin_1_160BPM.wav")
+    audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__pop_2_140BPM.wav")
+    # audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__latin_1_160BPM.wav")
     n_samples = sr * 4
     audio = audio[:, :n_samples]
     # audio = make_mod_signal(n_samples, sr, 220.0, shape="saw", exp=1.0)
@@ -175,20 +178,20 @@ if __name__ == "__main__":
     # plt.plot(mod_sig_a)
     # plt.show()
 
-    # mod_sig = tr.stack([mod_sig_a, mod_sig_b, mod_sig_c], dim=0)
-    mod_sig = tr.stack([mod_sig_b, mod_sig_b, mod_sig_b], dim=0)
+    mod_sig = tr.stack([mod_sig_a, mod_sig_b, mod_sig_c], dim=0)
+    # mod_sig = tr.stack([mod_sig_b, mod_sig_b, mod_sig_b], dim=0)
     flanger = MonoFlangerChorusModule(3, 1, n_samples, sr, 0.0, 5.0)
     chorus = MonoFlangerChorusModule(3, 1, n_samples, sr, 30.0, 10.0)
 
-    # feedback = tr.Tensor([0.0, 0.4, 0.7])
+    feedback = tr.Tensor([0.7, 0.4, 0.0])
     # depth = tr.Tensor([0.0, 0.5, 1.0])
     # width = tr.Tensor([0.0, 0.5, 1.0])
-    mix = tr.Tensor([0.0, 0.5, 1.0])
+    # mix = tr.Tensor([0.0, 0.5, 1.0])
     # width = 1.0
 
     print(f"audio in min = {tr.min(audio):.3f}")
     print(f"audio in max = {tr.max(audio):.3f}")
-    y_flanger = flanger(audio, mod_sig, mix=mix)
+    y_flanger = flanger(audio, mod_sig, )
     print(f"y    out min = {tr.min(y_flanger.squeeze(1), dim=-1)[0]}")
     print(f"y    out max = {tr.max(y_flanger.squeeze(1), dim=-1)[0]}")
 
