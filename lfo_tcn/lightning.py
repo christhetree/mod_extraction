@@ -96,7 +96,7 @@ class LFOExtraction(BaseLightingModule):
         if dry is not None:
             data_dict["dry"] = dry.detach().float().cpu(),
 
-        fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
+        fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
         # TODO(cm)
         # for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],

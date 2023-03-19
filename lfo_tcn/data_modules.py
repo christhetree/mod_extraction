@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 import pytorch_lightning as pl
 import torch as tr
@@ -9,13 +9,81 @@ from torch import Tensor as T
 from torch.utils.data import DataLoader
 
 from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
-    RandomAudioChunkDryWetDataset
+    RandomAudioChunkDryWetDataset, CombinedDataset
 from lfo_tcn.fx import MonoFlangerChorusModule
 from lfo_tcn.plotting import plot_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
+
+
+class CombinedDataModule(pl.LightningDataModule):
+    def __init__(self,
+                 batch_size: int,
+                 train_dataset_args: List[Dict[str, Any]],
+                 val_dataset_args: List[Dict[str, Any]],
+                 shared_train_args: Optional[Dict[str, Any]] = None,
+                 shared_val_args: Optional[Dict[str, Any]] = None,
+                 shared_args: Optional[Dict[str, Any]] = None,
+                 num_workers: int = 0) -> None:
+        super().__init__()
+        self.save_hyperparameters()
+        log.info(f"\n{self.hparams}")
+        self.batch_size = batch_size
+        self.train_dataset_args = train_dataset_args
+        self.val_dataset_args = val_dataset_args
+        if shared_train_args is None:
+            self.shared_train_args = {}
+        else:
+            self.shared_train_args = shared_train_args
+        if shared_val_args is None:
+            self.shared_val_args = {}
+        else:
+            self.shared_val_args = shared_val_args
+        self.num_workers = num_workers
+        if shared_args is not None:
+            for k, v in shared_args.items():
+                if k not in self.shared_train_args:
+                    self.shared_train_args[k] = v
+                else:
+                    log.info(f"Found existing key in shared_train_args: {k}")
+                if k not in self.shared_val_args:
+                    self.shared_val_args[k] = v
+                else:
+                    log.info(f"Found existing key in shared_val_args: {k}")
+
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.train_dataset = CombinedDataset(
+                self.train_dataset_args,
+                self.shared_train_args,
+            )
+            assert len(self.train_dataset.datasets) <= self.batch_size
+        if stage == "validate" or "fit":
+            self.val_dataset = CombinedDataset(
+                self.val_dataset_args,
+                self.shared_val_args,
+            )
+            assert len(self.val_dataset.datasets) <= self.batch_size
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+            drop_last=True,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            drop_last=True,
+        )
 
 
 class RandomAudioChunkDataModule(pl.LightningDataModule):

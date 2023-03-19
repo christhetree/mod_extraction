@@ -13,8 +13,8 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 torch.set_float32_matmul_precision("high")
 
 if __name__ == "__main__":
-    # config_name = "train_lfo_tcn_phaser.yml"
-    config_name = "train_lfo_tcn_flanger.yml"
+    config_name = "train_lfo_tcn_phaser.yml"
+    # config_name = "train_lfo_tcn_flanger.yml"
     # config_name = "train_em_phaser.yml"
     # config_name = "train_em_dry_wet.yml"
     config_path = os.path.join(CONFIGS_DIR, config_name)

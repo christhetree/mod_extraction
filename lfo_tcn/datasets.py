@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Dict, Optional, List, Any, Tuple
+from collections import defaultdict
+from typing import Dict, Optional, List, Any, Tuple, Type
 
 import torch as tr
 import torchaudio
@@ -11,12 +12,72 @@ from torch import Tensor as T
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from lfo_tcn import fx
 from lfo_tcn.fx import make_mod_signal
 from lfo_tcn.plotting import plot_spectrogram
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
+
+
+def get_dataset_class(name: str) -> Type[Dataset]:
+    if name == "random_audio_chunk":
+        return RandomAudioChunkDataset
+    elif name == "random_audio_chunk_dry_wet":
+        return RandomAudioChunkDryWetDataset
+    elif name == "random_audio_chunk_and_mod_sig":
+        return RandomAudioChunkAndModSigDataset
+    elif name == "pedalboard_phaser":
+        return PedalboardPhaserDataset
+    elif name == "tremolo":
+        return TremoloDataset
+    else:
+        raise ValueError(f"Unknown dataset name: {name}")
+
+
+class CombinedDataset(Dataset):
+    def __init__(
+            self,
+            dataset_args: List[Dict[str, Any]],
+            common_args: Dict[str, Any],
+    ) -> None:
+        super().__init__()
+        assert "num_examples_per_epoch" in common_args
+        self.dataset_args = dataset_args
+        self.common_args = common_args
+        self.num_examples_per_epoch = common_args["num_examples_per_epoch"]
+
+        dataset_names = []
+        dataset_weightings = []
+        datasets = []
+        for ds_args in dataset_args:
+            assert "dataset_name" in ds_args
+            ds_name = ds_args.pop("dataset_name")
+            dataset_names.append(ds_name)
+            n_copies = ds_args.pop("n_copies", 1)
+            dataset_weightings.append(n_copies)
+            for k, v in common_args.items():
+                if k not in ds_args:
+                    ds_args[k] = v
+            for _ in range(n_copies):
+                ds_class = get_dataset_class(ds_name)
+                ds = ds_class(**ds_args)  # TODO(cm): check random seed
+                datasets.append(ds)
+        self.dataset_names = dataset_names
+        self.dataset_weightings = dataset_weightings
+        self.datasets = datasets
+        log.info(f"dataset_names = {dataset_names}")
+        log.info(f"dataset_weightings = {dataset_weightings}")
+
+    def __len__(self):
+        return self.num_examples_per_epoch
+
+    def __getitem__(self, idx: int) -> Any:
+        ds_idx = idx % len(self.datasets)
+        ds = self.datasets[ds_idx]
+        item = ds[idx]
+        return item
 
 
 class RandomAudioChunkDataset(Dataset):
@@ -227,10 +288,6 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
             wet_p = all_wet_names_to_wet_path[name]
             dry_info = torchaudio.info(dry_p)
             wet_info = torchaudio.info(wet_p)
-            # if dry_info.num_frames != wet_info.num_frames:
-            #     print(dry_p)
-            #     print(dry_info.num_frames)
-            #     print(wet_info.num_frames)
             assert dry_info.sample_rate == wet_info.sample_rate, f"Different sample rates: {dry_p}, {wet_p}"
             assert abs(dry_info.num_frames - wet_info.num_frames) <= end_buffer_n_samples, \
                 f"Different lengths: {dry_p}: {dry_info.num_frames}, {wet_p}: {wet_info.num_frames}"
@@ -289,7 +346,7 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                          end_buffer_n_samples)
         self.fx_config = fx_config
 
-    def __getitem__(self, _) -> (T, T):
+    def __getitem__(self, _) -> (T, T, Dict[str, T]):
         audio_chunk = super().__getitem__(_)
         rate_hz = self.sample_log_uniform(self.fx_config["mod_sig"]["rate_hz"]["min"],
                                           self.fx_config["mod_sig"]["rate_hz"]["max"])
@@ -297,7 +354,12 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                                     self.fx_config["mod_sig"]["phase"]["max"])
         shape = self.choice(self.fx_config["mod_sig"]["shapes"])
         mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape)
-        return audio_chunk, mod_sig
+        fx_params = {
+            "rate_hz": rate_hz,
+            "phase": phase,
+            "shape": shape,
+        }
+        return audio_chunk, mod_sig, fx_params
 
 
 class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
@@ -343,6 +405,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
                                                              self.fx_config["pedalboard_phaser"])
         proc_mod_sig = make_mod_signal(proc_n_samples, self.sr, rate_hz, tr.pi / 2, "cos")
 
+        # TODO(cm): calc phase and add to fx_params
         start_idx = self.randint(0, proc_n_samples - self.n_samples + 1)
         dry = audio_chunk[:, start_idx:start_idx + self.n_samples]
         wet = proc_audio[:, start_idx:start_idx + self.n_samples]
@@ -355,6 +418,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
             plot_spectrogram(dry, title=f"phaser_dry_{idx}", save_name=f"phaser_dry_{idx}", sr=self.sr)
             plot_spectrogram(wet, title=f"phaser_wet_{idx}", save_name=f"phaser_wet_{idx}", sr=self.sr)
 
+        fx_params = defaultdict(float, fx_params)  # TODO(cm)
         return dry, wet, mod_sig, fx_params
 
     @staticmethod
@@ -380,5 +444,32 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
             "feedback": feedback,
             "mix": mix,
             "rate_hz": rate_hz,
+            "shape": "cos",
         }
         return y, fx_params
+
+
+class TremoloDataset(RandomAudioChunkAndModSigDataset):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        assert "tremolo" in self.fx_config
+
+    def __getitem__(self, idx: int) -> (T, T, T, Dict[str, float]):
+        dry, mod_sig, fx_params = super().__getitem__(idx)
+        mix = RandomAudioChunkDataset.sample_uniform(
+            self.fx_config["tremolo"]["mix"]["min"],
+            self.fx_config["tremolo"]["mix"]["max"],
+        )
+        fx_params["mix"] = mix
+        wet = fx.apply_tremolo(dry.unsqueeze(0), mod_sig.unsqueeze(0), mix)
+        wet = wet.squeeze(0)
+
+        if self.use_debug_mode:
+            plt.plot(mod_sig)
+            plt.title(f"tremolo_mod_sig_{idx}")
+            plt.show()
+            plot_spectrogram(dry, title=f"tremolo_dry_{idx}", save_name=f"tremolo_dry_{idx}", sr=self.sr)
+            plot_spectrogram(wet, title=f"tremolo_wet_{idx}", save_name=f"tremolo_wet_{idx}", sr=self.sr)
+
+        fx_params = defaultdict(float, fx_params)  # TODO(cm)
+        return dry, wet, mod_sig, fx_params

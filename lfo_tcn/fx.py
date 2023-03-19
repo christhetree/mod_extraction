@@ -135,8 +135,7 @@ class MonoFlangerChorusModule(nn.Module):
         prev_idx_all = tr.floor(delay_read_idx_all).to(tr.long)
         next_idx_all = (prev_idx_all + 1) % self.max_delay_samples
 
-        from tqdm import tqdm
-        for idx in tqdm(range(n_samples)):
+        for idx in range(n_samples):
             audio_val = x[:, :, idx]
             prev_idx = prev_idx_all[:, :, idx].unsqueeze(-1)
             next_idx = next_idx_all[:, :, idx].unsqueeze(-1)

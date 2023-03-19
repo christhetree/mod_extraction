@@ -72,7 +72,7 @@ class LogSpecAndModSigCallback(Callback):
                     if fx_params is not None:
                         params = {k: v[idx] for k, v in fx_params.items()}
                         title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
-                                           if k not in {"mix", "rate_hz"}])
+                                           if k not in {"rate_hz", "shape"}])
                         title = f"{idx}: {title}"
                     w = wet[idx]
                     spec = plot_spectrogram(w, ax[0], title, sr=pl_module.sr)
