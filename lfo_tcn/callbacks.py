@@ -70,9 +70,9 @@ class LogSpecAndModSigCallback(Callback):
                         fig, ax = plt.subplots(nrows=2, figsize=(6, 10), sharex="all", squeeze=True)
                     title = f"idx_{idx}"
                     if fx_params is not None:
-                        params = {k: v[idx] for k, v in fx_params.items()}
+                        params = {k: v if isinstance(v, float) else v[idx] for k, v in fx_params.items()}
                         title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
-                                           if k not in {"rate_hz", "shape"}])
+                                           if k not in {"phase", "rate_hz", "shape", "exp", "min_delay_ms", "max_lfo_delay_ms"}])
                         title = f"{idx}: {title}"
                     w = wet[idx]
                     spec = plot_spectrogram(w, ax[0], title, sr=pl_module.sr)

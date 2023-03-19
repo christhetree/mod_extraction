@@ -4,8 +4,8 @@ custom:
   project_name: lfo_tcn
   model_name: lfo_tcn_fdl1_l1-1
 #  dataset_name: ph_rate_egfx_clean
-  dataset_name: ph_all2_egfx_clean
-#  dataset_name: ph_rate_idmt_4
+#  dataset_name: ph_all2_egfx_clean
+  dataset_name: ph_rate_idmt_4_ibanez_fast
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
@@ -14,130 +14,62 @@ trainer:
   accelerator: gpu
   benchmark: false
   devices: [6]
-  max_epochs: 100
+  max_epochs: 200
+  num_sanity_val_steps: 2
 
 data:
-  class_path: lfo_tcn.data_modules.CombinedDataModule
+  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
   init_args:
-    batch_size: 32
-    num_workers: 8
-    train_dataset_args:
-      - dataset_name: pedalboard_phaser
-      - dataset_name: tremolo
-    val_dataset_args:
-      - dataset_name: pedalboard_phaser
-      - dataset_name: tremolo
-    shared_train_args:
-      input_dir: ../data/egfx_clean/train
-      num_examples_per_epoch: 20
-    shared_val_args:
-      input_dir: ../data/egfx_clean/val
-      num_examples_per_epoch: 10
-    shared_args:
-      use_debug_mode: true
-      n_samples: 96000
-      sr: 48000
-      ext: wav
-      silence_fraction_allowed: 0.1
-      silence_threshold_energy: 1e-6
-      n_retries: 10
-      check_dataset: false
-      fx_config:
-        pedalboard_phaser:
-          rate_hz:
-            min: 0.35
-            max: 5.0
-          depth:
-  #          min: 0.5
-  #          max: 0.5
-            min: 0.1
-            max: 1.0
-          centre_frequency_hz:
-  #          min: 420.0
-  #          max: 460.0
-            min: 70.0
-            max: 18000.0
-          feedback:
-  #          min: 0.5
-  #          max: 0.5
-            min: 0.0
-            max: 0.7
-          mix:
-            min: 1.0
-            max: 1.0
-        mod_sig:
-          rate_hz:
-            min: 0.35
-            max: 5.0
-          phase:
-            min: 0.0
-            max: 6.28318530718
-          shapes:
-            - cos
-            - rect_cos
-  #          - inv_rect_cos
-            - tri
-            - saw
-  #          - rsaw
-  #          - sqr
-        tremolo:
-          mix:
-            min: 0.2
-            max: 1.0
-
-
-#data:
-#  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
-#  init_args:
-#    batch_size: 32
-#    num_workers: 12
-#    use_debug_mode: false
+    batch_size: 200
+    num_workers: 12
+    use_debug_mode: false
 #    train_dir: ../data/egfx_clean/train
 #    val_dir: ../data/egfx_clean/val
-##    train_dir: ../data/idmt_4/train
-##    val_dir: ../data/idmt_4/val
-#    train_num_examples_per_epoch: 80000
-#    val_num_examples_per_epoch: 20000
+    train_dir: ../data/idmt_4_ibanez_fast/train
+    val_dir: ../data/idmt_4_ibanez_fast/val
+    train_num_examples_per_epoch: 1600
+    val_num_examples_per_epoch: 400
 #    n_samples: 96000
-##    n_samples: 88100
+    n_samples: 88200
 #    sr: 48000
-##    sr: 44100
-#    ext: wav
-#    silence_fraction_allowed: 0.1
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
 #    silence_threshold_energy: 1e-6
-##    silence_threshold_energy: 1e-4
-#    n_retries: 10
-#    check_dataset: false
-#    fx_config:
-#      pedalboard_phaser:
-#        rate_hz:
-##          min: 0.25
-#          min: 0.35
+    silence_threshold_energy: 1e-4
+    n_retries: 10
+    check_dataset: true
+    fx_config:
+      pedalboard_phaser:
+        rate_hz:
+#          min: 0.1
+          min: 0.35
+          max: 3.0
 #          max: 5.0
-#        depth:
-##          min: 0.5
-##          max: 0.5
-##          min: 0.2
-##          max: 0.7
+        depth:
+          min: 0.5
+          max: 0.5
+#          min: 0.2
+#          max: 0.7
 #          min: 0.1
 #          max: 1.0
-#        centre_frequency_hz:
-##          min: 420.0
-##          max: 460.0
-##          min: 200.0
-##          max: 800.0
+        centre_frequency_hz:
+          min: 420.0
+          max: 460.0
+#          min: 200.0
+#          max: 800.0
 #          min: 70.0
 #          max: 18000.0
-#        feedback:
-##          min: 0.5
-##          max: 0.5
-##          min: 0.2
-##          max: 0.7
+        feedback:
+          min: 0.5
+          max: 0.5
+#          min: 0.2
+#          max: 0.7
 #          min: 0.0
 #          max: 0.7
-#        mix:
-#          min: 1.0
-#          max: 1.0
+        mix:
+          min: 1.0
+          max: 1.0
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
@@ -145,12 +77,7 @@ model:
     model: ../configs/models/spectral_tcn.yml
     loss_dict:
       fdl1: 1.0
-#      fdl1: 0.5
-#      fdl1: 0.0
-#      l1: 1.0
-#      l1: 0.5
       l1: 0.1
-#      l1: 0.0
       mse: 0.0
 
 optimizer: ../configs/opt/adam_w.yml

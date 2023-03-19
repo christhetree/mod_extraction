@@ -3,13 +3,12 @@ import os
 from typing import Dict, Any, Optional, List
 
 import pytorch_lightning as pl
-import torch as tr
 from matplotlib import pyplot as plt
 from torch import Tensor as T
 from torch.utils.data import DataLoader
 
 from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
-    RandomAudioChunkDryWetDataset, CombinedDataset
+    RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset
 from lfo_tcn.fx import MonoFlangerChorusModule
 from lfo_tcn.plotting import plot_spectrogram
 
@@ -18,7 +17,7 @@ log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
-class CombinedDataModule(pl.LightningDataModule):
+class InterwovenDataModule(pl.LightningDataModule):
     def __init__(self,
                  batch_size: int,
                  train_dataset_args: List[Dict[str, Any]],
@@ -55,13 +54,13 @@ class CombinedDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.train_dataset = CombinedDataset(
+            self.train_dataset = InterwovenDataset(
                 self.train_dataset_args,
                 self.shared_train_args,
             )
             assert len(self.train_dataset.datasets) <= self.batch_size
         if stage == "validate" or "fit":
-            self.val_dataset = CombinedDataset(
+            self.val_dataset = InterwovenDataset(
                 self.val_dataset_args,
                 self.shared_val_args,
             )
@@ -333,8 +332,8 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                                                n_ch=1,
                                                n_samples=self.n_samples,
                                                sr=self.sr,
-                                               min_delay_ms=0.0,
-                                               max_lfo_delay_ms=self.fx_config["flanger"]["max_delay_ms"])
+                                               min_delay_ms=self.fx_config["flanger"]["min_delay_ms"],
+                                               max_lfo_delay_ms=self.fx_config["flanger"]["max_lfo_delay_ms"])
         if stage == "fit":
             self.train_dataset = RandomAudioChunkAndModSigDataset(
                 self.fx_config,
@@ -367,31 +366,33 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
             )
 
     def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):
-        dry, mod_sig = batch
+        dry, mod_sig, fx_params = batch
         feedback = RandomAudioChunkDataset.sample_uniform(
             self.fx_config["flanger"]["feedback"]["min"],
-            self.fx_config["flanger"]["feedback"]["max"]
+            self.fx_config["flanger"]["feedback"]["max"],
+            n=self.batch_size,
         )
         width = RandomAudioChunkDataset.sample_uniform(
             self.fx_config["flanger"]["width"]["min"],
-            self.fx_config["flanger"]["width"]["max"]
+            self.fx_config["flanger"]["width"]["max"],
+            n=self.batch_size,
         )
         depth = RandomAudioChunkDataset.sample_uniform(
             self.fx_config["flanger"]["depth"]["min"],
-            self.fx_config["flanger"]["depth"]["max"]
+            self.fx_config["flanger"]["depth"]["max"],
+            n=self.batch_size,
         )
         mix = RandomAudioChunkDataset.sample_uniform(
             self.fx_config["flanger"]["mix"]["min"],
-            self.fx_config["flanger"]["mix"]["max"]
+            self.fx_config["flanger"]["mix"]["max"],
+            n=self.batch_size,
         )
-        fx_params = {
-            "depth": depth,
-            "feedback": feedback,
-            "max_delay_ms": self.fx_config["flanger"]["max_delay_ms"],
-            "mix": mix,
-            "width": width,
-        }
-        fx_params = {k: tr.tensor(v).repeat(self.batch_size) for k, v in fx_params.items()}
+        fx_params["depth"] = depth
+        fx_params["feedback"] = feedback
+        fx_params["max_lfo_delay_ms"] = self.flanger.max_lfo_delay_ms
+        fx_params["min_delay_ms"] = self.flanger.min_delay_ms
+        fx_params["mix"] = mix
+        fx_params["width"] = width
 
         wet = self.flanger(dry, mod_sig, feedback, width, depth, mix)
 
@@ -404,3 +405,56 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 plot_spectrogram(w, title=f"flanger_wet_{idx}", save_name=f"flanger_wet_{idx}", sr=self.sr)
 
         return dry, wet, mod_sig, fx_params
+
+
+class PreprocessedDataModule(pl.LightningDataModule):
+    def __init__(self,
+                 batch_size: int,
+                 train_dir: str,
+                 val_dir: str,
+                 n_samples: int,
+                 sr: float,
+                 num_workers: int = 0,
+                 use_debug_mode: bool = False) -> None:
+        super().__init__()
+        self.save_hyperparameters()
+        log.info(f"\n{self.hparams}")
+        self.batch_size = batch_size
+        assert os.path.isdir(train_dir)
+        self.train_dir = train_dir
+        assert os.path.isdir(val_dir)
+        self.val_dir = val_dir
+        self.n_samples = n_samples
+        self.sr = sr
+        self.num_workers = num_workers
+        self.use_debug_mode = use_debug_mode
+
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.train_dataset = PreprocessedDataset(self.train_dir,
+                                                     self.n_samples,
+                                                     self.sr,
+                                                     use_debug_mode=self.use_debug_mode)
+        if stage == "validate" or "fit":
+            self.val_dataset = PreprocessedDataset(self.val_dir,
+                                                   self.n_samples,
+                                                   self.sr,
+                                                   use_debug_mode=self.use_debug_mode)
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+            drop_last=True,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            drop_last=True,
+        )

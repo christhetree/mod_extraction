@@ -74,6 +74,12 @@ class MonoFlangerChorusModule(nn.Module):
                  min_delay_ms: float,
                  max_lfo_delay_ms: float) -> None:
         super().__init__()
+        self.batch_size = batch_size
+        self.n_ch = n_ch
+        self.n_samples = n_samples
+        self.sr = sr
+        self.min_delay_ms = min_delay_ms
+        self.max_lfo_delay_ms = max_lfo_delay_ms
         self.min_delay_samples = int(((min_delay_ms / 1000.0) * sr) + 0.5)
         self.max_lfo_delay_samples = int(((max_lfo_delay_ms / 1000.0) * sr) + 0.5)
         self.max_delay_samples = self.min_delay_samples + self.max_lfo_delay_samples

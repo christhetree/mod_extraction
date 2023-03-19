@@ -1,8 +1,9 @@
 import logging
 import os
 from collections import defaultdict
-from typing import Dict, Optional, List, Any, Tuple, Type
+from typing import Dict, Optional, List, Any, Tuple, Type, Union
 
+import torch
 import torch as tr
 import torchaudio
 from matplotlib import pyplot as plt
@@ -36,7 +37,7 @@ def get_dataset_class(name: str) -> Type[Dataset]:
         raise ValueError(f"Unknown dataset name: {name}")
 
 
-class CombinedDataset(Dataset):
+class InterwovenDataset(Dataset):
     def __init__(
             self,
             dataset_args: List[Dict[str, Any]],
@@ -70,7 +71,7 @@ class CombinedDataset(Dataset):
         log.info(f"dataset_names = {dataset_names}")
         log.info(f"dataset_weightings = {dataset_weightings}")
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.num_examples_per_epoch
 
     def __getitem__(self, idx: int) -> Any:
@@ -205,7 +206,7 @@ class RandomAudioChunkDataset(Dataset):
 
         return audio_chunk, file_path, ch_idx, start_idx
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.num_examples_per_epoch
 
     def __getitem__(self, _) -> T:
@@ -232,17 +233,26 @@ class RandomAudioChunkDataset(Dataset):
         return items[idx]
 
     @staticmethod
-    def randint(low: int, high: int) -> int:
-        return tr.randint(low=low, high=high, size=(1,)).item()
+    def randint(low: int, high: int, n: int = 1) -> Union[int, T]:
+        x = tr.randint(low=low, high=high, size=(n,))
+        if n == 1:
+            return x.item()
+        return x
 
     @staticmethod
-    def sample_uniform(low: float, high: float) -> float:
-        return (tr.rand(1).item() * (high - low)) + low
+    def sample_uniform(low: float, high: float, n: int = 1) -> Union[float, T]:
+        x = (tr.rand(n) * (high - low)) + low
+        if n == 1:
+            return x.item()
+        return x
 
     @staticmethod
-    def sample_log_uniform(low: float, high: float) -> float:
+    def sample_log_uniform(low: float, high: float, n: int = 1) -> Union[float, T]:
         # TODO(cm): replace with torch
-        return float(loguniform.rvs(low, high))
+        x = loguniform.rvs(low, high, size=n)
+        if n == 1:
+            return float(x)
+        return torch.from_numpy(x)
 
 
 class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
@@ -353,11 +363,13 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         phase = self.sample_uniform(self.fx_config["mod_sig"]["phase"]["min"],
                                     self.fx_config["mod_sig"]["phase"]["max"])
         shape = self.choice(self.fx_config["mod_sig"]["shapes"])
-        mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape)
+        exp = self.fx_config["mod_sig"]["exp"]
+        mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape, exp)
         fx_params = {
             "rate_hz": rate_hz,
             "phase": phase,
             "shape": shape,
+            "exp": exp,
         }
         return audio_chunk, mod_sig, fx_params
 
@@ -464,6 +476,7 @@ class TremoloDataset(RandomAudioChunkAndModSigDataset):
         wet = fx.apply_tremolo(dry.unsqueeze(0), mod_sig.unsqueeze(0), mix)
         wet = wet.squeeze(0)
 
+        # TODO(cm): Extract into method
         if self.use_debug_mode:
             plt.plot(mod_sig)
             plt.title(f"tremolo_mod_sig_{idx}")
@@ -472,4 +485,46 @@ class TremoloDataset(RandomAudioChunkAndModSigDataset):
             plot_spectrogram(wet, title=f"tremolo_wet_{idx}", save_name=f"tremolo_wet_{idx}", sr=self.sr)
 
         fx_params = defaultdict(float, fx_params)  # TODO(cm)
+        return dry, wet, mod_sig, fx_params
+
+
+class PreprocessedDataset(Dataset):
+    def __init__(self,
+                 input_dir: str,
+                 n_samples: int,
+                 sr: float,
+                 use_debug_mode: bool = False) -> None:
+        super().__init__()
+        self.input_dir = input_dir
+        self.n_samples = n_samples
+        self.sr = sr
+        self.use_debug_mode = use_debug_mode
+        self.pt_paths = RandomAudioChunkDataset.get_file_paths(input_dir, ".pt")
+        self.dry_paths = [f"{p[:-3]}_dry.wav" for p in self.pt_paths]
+        self.wet_paths = [f"{p[:-3]}_wet.wav" for p in self.pt_paths]
+
+    def __len__(self) -> int:
+        return len(self.pt_paths)
+
+    def __getitem__(self, idx: int) -> (T, T, T, Dict[str, Any]):
+        pt_path = self.pt_paths[idx]
+        dry_path = self.dry_paths[idx]
+        wet_path = self.wet_paths[idx]
+        data = tr.load(pt_path)
+        mod_sig = data["mod_sig"]
+        fx_params = data["fx_params"]
+        dry, sr = torchaudio.load(dry_path)
+        assert sr == self.sr
+        assert dry.size(-1) == self.n_samples
+        wet, sr = torchaudio.load(wet_path)
+        assert sr == self.sr
+        assert wet.size(-1) == self.n_samples
+
+        if self.use_debug_mode:
+            plt.plot(mod_sig)
+            plt.title(f"mod_sig_{idx}")
+            plt.show()
+            plot_spectrogram(dry, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=sr)
+            plot_spectrogram(wet, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=sr)
+
         return dry, wet, mod_sig, fx_params

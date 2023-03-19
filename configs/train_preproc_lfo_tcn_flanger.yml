@@ -1,0 +1,36 @@
+seed_everything: 44
+
+custom:
+  project_name: lfo_tcn
+  model_name: lfo_ds_tcn_gen_8x
+  dataset_name: idmt_4_ibanez_fast__4shapes_fl_fixed_params
+  cpu_batch_size: 4
+
+trainer:
+  accelerator: gpu
+  benchmark: false
+  devices: [6]
+  max_epochs: 200
+  num_sanity_val_steps: 2
+
+data:
+  class_path: lfo_tcn.data_modules.PreprocessedDataModule
+  init_args:
+    batch_size: 200
+    n_samples: 88200
+    sr: 44100
+    num_workers: 8
+    use_debug_mode: false
+    train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
+    val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model: ../configs/models/spectral_tcn.yml
+    loss_dict:
+      fdl1: 1.0
+      l1: 0.1
+      mse: 0.0
+
+optimizer: ../configs/opt/adam_w.yml
