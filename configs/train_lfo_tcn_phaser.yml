@@ -2,7 +2,7 @@ seed_everything: 42
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_tcn_fdl1_l1-1
+  model_name: lfo_tcn_fdl1_l1-1_lstm_no_smoothing
 #  dataset_name: ph_rate_egfx_clean
 #  dataset_name: ph_all2_egfx_clean
   dataset_name: ph_rate_idmt_4_ibanez_fast
@@ -13,7 +13,7 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [6]
+  devices: [5]
   max_epochs: 200
   num_sanity_val_steps: 2
 
@@ -38,7 +38,7 @@ data:
 #    silence_threshold_energy: 1e-6
     silence_threshold_energy: 1e-4
     n_retries: 10
-    check_dataset: true
+    check_dataset: false
     fx_config:
       pedalboard_phaser:
         rate_hz:

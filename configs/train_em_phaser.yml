@@ -1,20 +1,17 @@
 seed_everything: 44
-#ckpt_path: ../models/lstm_48__ph_rate_egfx_clean__epoch_29_step_93750.ckpt
-#ckpt_path: ../models/lstm_48__ph_all2_egfx_clean__epoch_39_step_125000.ckpt
-#ckpt_path: ../models/lstm_48_fr__ph_rate_egfx_clean__epoch_26_step_84375.ckpt
-#ckpt_path: ../models/lstm_48_gt__ph_rate_egfx_clean__epoch_41_step_131250.ckpt
 
 custom:
   project_name: lfo_tcn
 #  model_name: lstm_48_gt_l1_tbp_1024
 #  model_name: lstm_48_fr_p2_tbp_1024
-  model_name: lstm_48_ms_p2_tbp_1024
+#  model_name: lstm_48_ms_p2_tbp_1024
 #  model_name: lstm_48_gt_p_gt_tbp_1024
+  model_name: lstm_64_2dcnn_tbp_1024
 #  dataset_name: ph_rate_egfx_clean
 #  dataset_name: ph_fb_egfx_clean
 #  dataset_name: ph_cf_egfx_clean
-  dataset_name: ph_all2_egfx_clean
-#  dataset_name: ph_rate_idmt_4
+#  dataset_name: ph_all2_egfx_clean
+  dataset_name: ph_rate_idmt_4
 #  dataset_name: ph_all2_idmt_4
 #  dataset_name: ph_fb_idmt_4
   cpu_batch_size: 5
@@ -24,58 +21,60 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [3]
+  devices: [4]
   max_epochs: 100
 
 data:
   class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
   init_args:
-    batch_size: 512
+    batch_size: 128
     num_workers: 12
     use_debug_mode: false
-    train_dir: ../data/egfx_clean/train
-    val_dir: ../data/egfx_clean/val
-#    train_dir: ../data/idmt_4/train
-#    val_dir: ../data/idmt_4/val
-    train_num_examples_per_epoch: 80000
-    val_num_examples_per_epoch: 20000
-    n_samples: 96000
-#    n_samples: 88100
-    sr: 48000
-#    sr: 44100
+#    train_dir: ../data/egfx_clean/train
+#    val_dir: ../data/egfx_clean/val
+    train_dir: ../data/idmt_4/train
+    val_dir: ../data/idmt_4/val
+    train_num_examples_per_epoch: 4000
+    val_num_examples_per_epoch: 1000
+#    n_samples: 96000
+    n_samples: 88200
+#    sr: 48000
+    sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-    silence_threshold_energy: 1e-6
-#    silence_threshold_energy: 1e-4
+#    silence_threshold_energy: 1e-6
+    silence_threshold_energy: 1e-4
     n_retries: 10
     check_dataset: false
     fx_config:
       pedalboard_phaser:
         rate_hz:
 #          min: 0.25
-          min: 0.35
-          max: 5.0
+#          min: 0.35
+          min: 0.5
+          max: 3.0
+#          max: 5.0
         depth:
-#          min: 0.5
-#          max: 0.5
+          min: 0.5
+          max: 0.5
 #          min: 0.2
 #          max: 0.7
-          min: 0.1
-          max: 1.0
+#          min: 0.1
+#          max: 1.0
         centre_frequency_hz:
-#          min: 420.0
-#          max: 460.0
+          min: 420.0
+          max: 460.0
 #          min: 200.0
 #          max: 800.0
-          min: 70.0
-          max: 18000.0
+#          min: 70.0
+#          max: 18000.0
         feedback:
-#          min: 0.5
-#          max: 0.5
+          min: 0.5
+          max: 0.5
 #          min: 0.2
 #          max: 0.7
-          min: 0.0
-          max: 0.7
+#          min: 0.0
+#          max: 0.7
         mix:
           min: 1.0
           max: 1.0
@@ -90,18 +89,20 @@ model:
       init_args:
         in_ch: 1
         out_ch: 1
-        n_hidden: 48
-#        latent_dim: 1
+        n_hidden: 64
+        latent_dim: 1
 #        latent_dim: 2
-        latent_dim: 3
+#        latent_dim: 3
 #    lfo_model: null
-    lfo_model: ../configs/models/spectral_tcn.yml
+#    lfo_model: ../configs/models/spectral_tcn.yml
+    lfo_model: ../configs/models/spectral_2dcnn.yml
     lfo_model_weights_path: null
+    freeze_lfo_model: false
 #    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_egfx_clean__epoch_65_step_12870.pt
 #    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
 #    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925.pt
-#    param_model: null
-    param_model: ../configs/models/spectral_ds_tcn.yml
+    param_model: null
+#    param_model: ../configs/models/spectral_ds_tcn.yml
     loss_dict:
       l1: 1.0
       esr: 0.0

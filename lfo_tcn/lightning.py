@@ -65,6 +65,7 @@ class LFOExtraction(BaseLightingModule):
     def __init__(self,
                  model: nn.Module,
                  sr: float,
+                 use_dry: bool = False,
                  sub_batch_size: Optional[int] = None,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
@@ -72,6 +73,7 @@ class LFOExtraction(BaseLightingModule):
         log.info(f"\n{self.hparams}")
         self.model = model
         self.sr = sr
+        self.use_dry = use_dry
         self.sub_batch_size = sub_batch_size
 
     def forward(self, x: T) -> T:
@@ -82,7 +84,11 @@ class LFOExtraction(BaseLightingModule):
                     is_training: bool) -> (T, Dict[str, T], Dict[str, T]):
         prefix = "train" if is_training else "val"
         dry, wet, mod_sig, fx_params = batch
-        mod_sig_hat = self.model(wet).squeeze(1)
+        if self.use_dry:
+            assert dry is not None
+            mod_sig_hat = self.model(tr.cat([dry, wet], dim=1)).squeeze(1)
+        else:
+            mod_sig_hat = self.model(wet).squeeze(1)
         mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
         assert mod_sig.shape == mod_sig_hat.shape
 
@@ -155,6 +161,7 @@ class LFOExtraction(BaseLightingModule):
         return loss, data_dict, fx_params
 
 
+# TODO(cm): refactor
 class LFOEffectModeling(BaseLightingModule):
     default_loss_dict = {"l1": 1.0, "esr": 0.0, "dc": 0.0}
 
@@ -253,17 +260,19 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                  freeze_lfo_model: bool = True,
                  param_model: Optional[nn.Module] = None,
                  sr: float = 44100,
+                 use_dry: bool = False,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         assert warmup_n_samples > 0
-        self.warmup_n_samples = warmup_n_samples
-        self.step_n_samples = step_n_samples
         super().__init__(effect_model,
                          lfo_model,
                          lfo_model_weights_path,
                          freeze_lfo_model=freeze_lfo_model,
                          sr=sr,
                          loss_dict=loss_dict)
+        self.warmup_n_samples = warmup_n_samples
+        self.step_n_samples = step_n_samples
         self.param_model = param_model
+        self.use_dry = use_dry
         self.automatic_optimization = False
 
     def common_step(self,
@@ -278,7 +287,11 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         assert dry.size(-1) == wet.size(-1)
         assert dry.size(-1) >= self.warmup_n_samples + self.step_n_samples
 
-        mod_sig_hat, mod_sig = self.extract_mod_sig(wet, mod_sig)
+        lfo_model_input = wet
+        if self.use_dry:
+            lfo_model_input = tr.cat([dry, wet], dim=1)
+
+        mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig)
         mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
         mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
 
@@ -308,7 +321,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                 break
 
             if is_training:
-                mod_sig_hat, mod_sig = self.extract_mod_sig(wet, mod_sig)
+                mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig)
                 mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
                 mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
 
@@ -351,7 +364,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
             data_dict["mod_sig"] = mod_sig.detach().float().cpu()
 
         if fx_params is not None:
-            fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
+            fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
         # for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
         #                                            data_dict["wet"],

@@ -2,8 +2,7 @@ seed_everything: 44
 
 custom:
   project_name: lfo_tcn
-#  model_name: lstm_48_ms_ph_all2_egfx
-  model_name: lstm_48_fr_ph_all2_egfx
+  model_name: lstm_64_2dcnn_tbp_1024
   dataset_name: egfx_ph
 #  dataset_name: egfx_ch
   cpu_batch_size: 5
@@ -19,8 +18,8 @@ trainer:
 data:
   class_path: lfo_tcn.data_modules.RandomAudioChunkDryWetDataModule
   init_args:
-    batch_size: 1024
-    num_workers: 4
+    batch_size: 128
+    num_workers: 8
     use_debug_mode: false
     dry_train_dir: ../data/egfx_clean/train
     dry_val_dir: ../data/egfx_clean/val
@@ -30,8 +29,8 @@ data:
 #    wet_val_dir: ../data/egfx_flanger/val
 #    wet_train_dir: ../data/egfx_chorus/train
 #    wet_val_dir: ../data/egfx_chorus/val
-    train_num_examples_per_epoch: 80000
-    val_num_examples_per_epoch: 20000
+    train_num_examples_per_epoch: 4000
+    val_num_examples_per_epoch: 1000
     n_samples: 96000
     sr: 48000
     ext: wav
@@ -51,11 +50,11 @@ model:
       init_args:
         in_ch: 1
         out_ch: 1
-        n_hidden: 48
+        n_hidden: 64
         latent_dim: 1
-    lfo_model: ../configs/models/spectral_tcn.yml
-    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
-    freeze_lfo_model: true
+    lfo_model: ../configs/models/spectral_2dcnn.yml
+    lfo_model_weights_path: null
+    freeze_lfo_model: false
     param_model: null
     loss_dict:
       l1: 1.0

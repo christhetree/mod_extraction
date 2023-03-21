@@ -71,6 +71,7 @@ class LogSpecAndModSigCallback(Callback):
                     title = f"idx_{idx}"
                     if fx_params is not None:
                         params = {k: v if isinstance(v, float) else v[idx] for k, v in fx_params.items()}
+                        # TODO: refactor
                         title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
                                            if k not in {"phase", "rate_hz", "shape", "exp", "min_delay_ms", "max_lfo_delay_ms"}])
                         title = f"{idx}: {title}"
@@ -137,8 +138,9 @@ class LogAudioCallback(Callback):
                     title = f"idx_{idx}"
                     if fx_params is not None:
                         params = {k: v[idx] for k, v in fx_params.items()}
+                        # TODO: refactor
                         title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
-                                           if k not in {"mix", "rate_hz"}])
+                                           if k not in {"phase", "rate_hz", "shape", "exp", "min_delay_ms", "max_lfo_delay_ms"}])
                         title = f"{idx}: {title}"
                     if self.log_dry_audio:
                         waveforms = [d, w, w_hat]

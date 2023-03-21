@@ -1,0 +1,47 @@
+seed_everything: 42
+
+custom:
+  project_name: lfo_tcn
+  model_name: lfo_2dcnn_32_64_96_io
+#  dataset_name: fl_v_ch__idmt_4_ibanez_fast
+  dataset_name: ch_v_fl__idmt_4_ibanez_fast
+  cpu_batch_size: 3
+  cpu_train_num_examples_per_epoch: 6
+  cpu_val_num_examples_per_epoch: 3
+
+trainer:
+  accelerator: gpu
+  benchmark: false
+  devices: [2]
+  max_epochs: 50
+  num_sanity_val_steps: 1
+
+data:
+  class_path: lfo_tcn.data_modules.InterwovenDataModule
+  init_args:
+    batch_size: 50
+    num_workers: 8
+    shared_args:
+      use_debug_mode: false
+      n_samples: 88200
+      sr: 44100
+    train_dataset_args:
+      - dataset_name: preproc
+#        input_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
+    val_dataset_args:
+      - dataset_name: preproc
+#        input_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model: ../configs/models/spectral_2dcnn.yml
+    use_dry: true
+    loss_dict:
+      fdl1: 1.0
+      l1: 0.1
+      mse: 0.0
+
+optimizer: ../configs/opt/adam_w.yml

@@ -33,6 +33,8 @@ def get_dataset_class(name: str) -> Type[Dataset]:
         return PedalboardPhaserDataset
     elif name == "tremolo":
         return TremoloDataset
+    elif name == "preproc":
+        return PreprocessedDataset
     else:
         raise ValueError(f"Unknown dataset name: {name}")
 
@@ -44,10 +46,8 @@ class InterwovenDataset(Dataset):
             common_args: Dict[str, Any],
     ) -> None:
         super().__init__()
-        assert "num_examples_per_epoch" in common_args
         self.dataset_args = dataset_args
         self.common_args = common_args
-        self.num_examples_per_epoch = common_args["num_examples_per_epoch"]
 
         dataset_names = []
         dataset_weightings = []
@@ -71,8 +71,11 @@ class InterwovenDataset(Dataset):
         log.info(f"dataset_names = {dataset_names}")
         log.info(f"dataset_weightings = {dataset_weightings}")
 
+        self.size = len(datasets[0])
+        assert all(len(d) == self.size for d in datasets)
+
     def __len__(self) -> int:
-        return self.num_examples_per_epoch
+        return self.size
 
     def __getitem__(self, idx: int) -> Any:
         ds_idx = idx % len(self.datasets)

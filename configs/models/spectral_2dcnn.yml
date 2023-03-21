@@ -1,0 +1,15 @@
+class_path: lfo_tcn.models.Spectral2DCNN
+init_args:
+  in_ch: 2
+  n_fft: 1024
+  hop_len: 256
+  kernel_size: [5, 13]
+#  out_channels: [72, 72, 72, 72, 72]
+#  out_channels: [10, 20, 40, 80, 160]
+  out_channels: [32, 32, 64, 96, 96]
+  temp_dilations: [1, 2, 4, 8, 16]
+  pool_size: [3, 1]
+  latent_dim: 1
+  smooth_n_frames: 8
+  use_ln: true
+  scale_output: false

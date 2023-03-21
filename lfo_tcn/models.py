@@ -17,13 +17,12 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 class SpectralTCN(nn.Module):
     def __init__(self,
-                 n_samples: int = 96000,
+                 n_samples: int = 88200,
                  n_fft: int = 1024,
                  hop_len: int = 256,
                  kernel_size: int = 13,
                  out_channels: Optional[List[int]] = None,
                  dilations: Optional[List[int]] = None,
-                 n_fc_units: int = 128,  # TODO(cm): remove
                  latent_dim: int = 1,
                  smooth_n_frames: int = 8,
                  use_ln: bool = True,
@@ -33,7 +32,6 @@ class SpectralTCN(nn.Module):
         self.n_fft = n_fft
         self.hop_len = hop_len
         self.kernel_size = kernel_size
-        self.n_fc_units = n_fc_units
         self.latent_dim = latent_dim
         self.smooth_n_frames = smooth_n_frames
         self.use_ln = use_ln
@@ -64,6 +62,10 @@ class SpectralTCN(nn.Module):
         log.info(f"Receptive field = {self.receptive_field} samples")
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
+        # lstm_dim = 64
+        # self.lstm = nn.LSTM(out_channels[-1], lstm_dim, batch_first=True, bidirectional=True)
+        # self.output = nn.Conv1d(2 * lstm_dim, self.latent_dim, kernel_size=(1,))
+
     def forward(self, x: T) -> T:
         assert x.ndim == 3
         x = self.spectrogram(x).squeeze(1)
@@ -71,12 +73,113 @@ class SpectralTCN(nn.Module):
         x = tr.log(x)
 
         x = self.tcn(x)
+
+        # lstm_in = tr.swapaxes(x, 1, 2)
+        # lstm_out, _ = self.lstm(lstm_in)
+        # x = tr.swapaxes(lstm_out, 1, 2)
+
         x = self.output(x)
         x = tr.sigmoid(x)
 
         if self.smooth_n_frames > 1:
             x = x.unfold(dimension=-1, size=self.smooth_n_frames, step=1)
             x = tr.mean(x, dim=-1, keepdim=False)
+        return x
+
+
+class Spectral2DCNN(nn.Module):
+    def __init__(self,
+                 in_ch: int = 1,
+                 n_samples: int = 88200,
+                 n_fft: int = 1024,
+                 hop_len: int = 256,
+                 kernel_size: Tuple[int, int] = (5, 13),
+                 out_channels: Optional[List[int]] = None,
+                 bin_dilations: Optional[List[int]] = None,
+                 temp_dilations: Optional[List[int]] = None,
+                 pool_size: Tuple[int, int] = (3, 1),
+                 latent_dim: int = 1,
+                 smooth_n_frames: int = 8,
+                 use_ln: bool = True,
+                 scale_output: bool = False,
+                 eps: float = 1e-7) -> None:
+        super().__init__()
+        self.n_fft = n_fft
+        self.hop_len = hop_len
+        self.kernel_size = kernel_size
+        assert pool_size[1] == 1
+        self.pool_size = pool_size
+        self.latent_dim = latent_dim
+        self.smooth_n_frames = smooth_n_frames
+        self.use_ln = use_ln
+        self.scale_output = scale_output
+        self.eps = eps
+        if out_channels is None:
+            out_channels = [64] * 5
+        self.out_channels = out_channels
+        if bin_dilations is None:
+            bin_dilations = [1] * len(out_channels)
+        self.bin_dilations = bin_dilations
+        if temp_dilations is None:
+            temp_dilations = [2 ** idx for idx in range(len(out_channels))]
+        self.temp_dilations = temp_dilations
+
+        self.spectrogram = Spectrogram(n_fft, hop_length=hop_len, normalized=False)
+        n_bin = n_fft // 2 + 1
+        n_frames = n_samples // hop_len + 1
+        temporal_dims = [n_frames] * len(out_channels)
+
+        layers = []
+        for out_ch, b_dil, t_dil, temp_dim in zip(out_channels, bin_dilations, temp_dilations, temporal_dims):
+            if use_ln:
+                layers.append(nn.LayerNorm([in_ch, n_bin, temp_dim], elementwise_affine=False))
+                # layers.append(nn.BatchNorm2d(in_ch, affine=False))
+            layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=(1, 1), dilation=(b_dil, t_dil), padding="same"))
+            # padding = (kernel_size[0] // 2 * b_dil, kernel_size[1] // 2 * t_dil)
+            # layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=pool_size, dilation=(b_dil, t_dil), padding=padding))
+            # n_bin = math.ceil(n_bin / pool_size[0])
+            layers.append(nn.MaxPool2d(kernel_size=pool_size))
+            layers.append(nn.PReLU(num_parameters=out_ch))
+            in_ch = out_ch
+            n_bin = n_bin // pool_size[0]
+        self.cnn = nn.Sequential(*layers)
+
+        self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
+
+    def forward(self, x: T) -> T:
+        assert x.ndim == 3
+        x = self.spectrogram(x)
+
+        x = tr.clip(x, min=self.eps)
+        x = tr.log(x)
+
+        # plt.imshow(x[0, 1, :, :].detach().numpy())
+        # plt.show()
+        # n_bins = x.size(2)
+        # min_n = int(0.05 * n_bins)
+        # n = tr.randint(min_n, n_bins, size=(1,)).item()
+        # n = int(RandomAudioChunkDataset.sample_log_uniform(float(min_n), float(n_bins)))
+        # x = x[:, :, :n, :]
+        # x = nn.functional.interpolate(x, (n_bins, x.size(3)), mode="bicubic", align_corners=True)
+        # plt.imshow(x[0, 1, :, :].detach().numpy())
+        # plt.show()
+
+        x = self.cnn(x)
+        x = tr.mean(x, dim=-2)
+
+        x = self.output(x)
+        x = tr.sigmoid(x)
+
+        if self.smooth_n_frames > 1:
+            x = x.unfold(dimension=-1, size=self.smooth_n_frames, step=1)
+            x = tr.mean(x, dim=-1, keepdim=False)
+
+        if self.scale_output:
+            x_min = tr.min(x.squeeze(1), dim=-1).values.view(-1, 1, 1)
+            x_max = tr.max(x.squeeze(1), dim=-1).values.view(-1, 1, 1)
+            x -= x_min
+            x *= (1.0 / (x_max - x_min))
+
         return x
 
 
@@ -197,7 +300,12 @@ class LSTMEffectModel(HiddenStateModel):
 
 
 if __name__ == "__main__":
-    model = SpectralTCN()
+    # model = SpectralTCN(kernel_size=5,
+    #                     out_channels=[96] * 5,
+    #                     dilations=[1, 3, 9, 27, 81],
+    #                     use_ln=False)
+    # print(model.tcn.calc_receptive_field())
+    model = Spectral2DCNN()
     # model = SpectralDSTCN()
     # model = LSTMEffectModel()
 

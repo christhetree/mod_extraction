@@ -1,28 +1,30 @@
 seed_everything: 44
+#ckpt_path: ../models/lstm_48__ph_rate_egfx_clean__epoch_29_step_93750.ckpt
+#ckpt_path: ../models/lstm_48__ph_all2_egfx_clean__epoch_39_step_125000.ckpt
+#ckpt_path: ../models/lstm_48_fr__ph_rate_egfx_clean__epoch_26_step_84375.ckpt
+#ckpt_path: ../models/lstm_48_gt__ph_rate_egfx_clean__epoch_41_step_131250.ckpt
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_2dcnn_32_64_96_io_ln_learnable
-#  model_name: lfo_tcn_fdl1_l1-1_lstm_no_smoothing
+  model_name: lstm_64_2dcnn_tbp_1024
   dataset_name: idmt_4_ibanez_fast__4shapes_fl_fixed_params
 #  dataset_name: idmt_4_ibanez_fast__4shapes_fl_varied_params
 #  dataset_name: idmt_4_ibanez_fast__4shapes_ch_fixed_params
-  cpu_batch_size: 4
+  cpu_batch_size: 5
 
 trainer:
   accelerator: gpu
   benchmark: false
   devices: [1]
-  max_epochs: 50
-  num_sanity_val_steps: 2
+  max_epochs: 100
 
 data:
   class_path: lfo_tcn.data_modules.PreprocessedDataModule
   init_args:
-    batch_size: 25
+    batch_size: 128
+    num_workers: 8
     n_samples: 88200
     sr: 44100
-    num_workers: 8
     use_debug_mode: false
     train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
     val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
@@ -32,15 +34,25 @@ data:
 #    val_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/val
 
 model:
-  class_path: lfo_tcn.lightning.LFOExtraction
+  class_path: lfo_tcn.lightning.TBPTTLFOEffectModeling
   init_args:
-#    model: ../configs/models/spectral_tcn.yml
-    model: ../configs/models/spectral_2dcnn.yml
+    warmup_n_samples: 1024
+    step_n_samples: 1024
+    effect_model:
+      class_path: lfo_tcn.models.LSTMEffectModel
+      init_args:
+        in_ch: 1
+        out_ch: 1
+        n_hidden: 64
+        latent_dim: 1
+    lfo_model: ../configs/models/spectral_2dcnn.yml
+    lfo_model_weights_path: null
+    freeze_lfo_model: false
+    param_model: null
+#    param_model: ../configs/models/spectral_ds_tcn.yml
     loss_dict:
-      fdl1: 1.0
-#      fdl1: 0.0
-      l1: 0.1
-#      l1: 1.0
-      mse: 0.0
+      l1: 1.0
+      esr: 0.0
+      dc: 0.0
 
 optimizer: ../configs/opt/adam_w.yml
