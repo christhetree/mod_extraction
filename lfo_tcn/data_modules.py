@@ -8,7 +8,7 @@ from torch import Tensor as T
 from torch.utils.data import DataLoader
 
 from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
-    RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset
+    RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset, RandomPreprocessedDataset
 from lfo_tcn.fx import MonoFlangerChorusModule
 from lfo_tcn.plotting import plot_spectrogram
 
@@ -458,3 +458,33 @@ class PreprocessedDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             drop_last=True,
         )
+
+
+class RandomPreprocessedDataModule(PreprocessedDataModule):
+    def __init__(self,
+                 train_num_examples_per_epoch: int,
+                 val_num_examples_per_epoch: int,
+                 batch_size: int,
+                 train_dir: str,
+                 val_dir: str,
+                 n_samples: int,
+                 sr: float,
+                 num_workers: int = 0,
+                 use_debug_mode: bool = False) -> None:
+        super().__init__(batch_size, train_dir, val_dir, n_samples, sr, num_workers, use_debug_mode)
+        self.train_num_examples_per_epoch = train_num_examples_per_epoch
+        self.val_num_examples_per_epoch = val_num_examples_per_epoch
+
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.train_dataset = RandomPreprocessedDataset(self.train_num_examples_per_epoch,
+                                                           self.train_dir,
+                                                           self.n_samples,
+                                                           self.sr,
+                                                           use_debug_mode=self.use_debug_mode)
+        if stage == "validate" or "fit":
+            self.val_dataset = RandomPreprocessedDataset(self.val_num_examples_per_epoch,
+                                                         self.val_dir,
+                                                         self.n_samples,
+                                                         self.sr,
+                                                         use_debug_mode=self.use_debug_mode)

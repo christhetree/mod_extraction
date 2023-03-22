@@ -4,7 +4,10 @@ from typing import Union
 
 import torch as tr
 import torchaudio
+from matplotlib import pyplot as plt
 from torch import Tensor as T, nn
+
+from lfo_tcn.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -50,6 +53,47 @@ def make_mod_signal(n_samples: int,
 
     if exp != 1.0:
         mod_sig = mod_sig ** exp
+    return mod_sig
+
+
+def mod_sig_to_corners(mod_sig: T, n_frames: int) -> (T, T):
+    assert mod_sig.ndim == 2
+    # left_edge = mod_sig[:, 0]
+    # right_edge = mod_sig[:, 1]
+    mod_sig = linear_interpolate_last_dim(mod_sig, n_frames, align_corners=True)
+    m_r = mod_sig[:, 1:]
+    m_l = mod_sig[:, :-1]
+    diff = m_r - m_l
+    diff_r = diff[:, 1:]
+    diff_l = diff[:, :-1]
+    diff_mult = diff_l * diff_r
+    corners = -tr.floor(diff_mult)
+    tmp = tr.zeros_like(mod_sig)
+    tmp[:, 1:-1] = corners
+    corners = tmp
+    corner_vals = mod_sig * corners
+    top_corners = tr.round(corner_vals)
+    top_corners = top_corners.long()
+    bottom_corners = tr.ceil(corner_vals).long() - top_corners
+    return top_corners, bottom_corners
+
+
+def corners_to_mod_sig(top_corners: T, bottom_corners: T) -> T:
+    assert top_corners.ndim == 1
+    assert top_corners.shape == bottom_corners.shape
+    mod_sig = tr.zeros_like(top_corners).float()
+    if top_corners.max() == 0 or bottom_corners.max() == 0:
+        return mod_sig
+    top_indices = tr.where(top_corners == 1)[0]
+    top_indices = [(v.item(), 1) for v in top_indices]
+    bottom_indices = tr.where(bottom_corners == 1)[0]
+    bottom_indices = [(v.item(), 0) for v in bottom_indices]
+    indices = top_indices + bottom_indices
+    indices.sort(key=lambda x: x[0])
+    for idx in range(len(indices) - 1):
+        l_idx, l_v = indices[idx]
+        r_idx, r_v = indices[idx + 1]
+        mod_sig[l_idx:r_idx + 1] = tr.linspace(l_v, r_v, r_idx - l_idx + 1)
     return mod_sig
 
 
@@ -176,14 +220,22 @@ if __name__ == "__main__":
     # audio = make_mod_signal(n_samples, sr, 220.0, shape="saw", exp=1.0)
     audio = audio.view(1, 1, -1).repeat(3, 1, 1)
 
-    mod_sig_a = make_mod_signal(n_samples, sr, 0.1, phase=0, shape="cos", exp=1.0)
-    mod_sig_b = make_mod_signal(n_samples, sr, 1.0, phase=tr.pi, shape="tri", exp=1.0)
-    mod_sig_c = make_mod_signal(n_samples, sr, 2.0, phase=tr.pi, shape="saw", exp=3.0)
+    mod_sig_a = make_mod_signal(n_samples, sr, 2.1, phase=0, shape="cos", exp=1.0)
+    mod_sig_b = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="tri", exp=1.0)
+    mod_sig_c = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="sqr", exp=3.0)
 
-    # plt.plot(mod_sig_a)
-    # plt.show()
 
     mod_sig = tr.stack([mod_sig_a, mod_sig_b, mod_sig_c], dim=0)
+    mod_sig = linear_interpolate_last_dim(mod_sig, 128)
+    idx = 2
+    plt.plot(mod_sig[idx])
+
+    top_corners, bottom_corners = mod_sig_to_corners(mod_sig, 128)
+    rec_mod_sig = corners_to_mod_sig(top_corners[idx], bottom_corners[idx])
+    plt.plot(rec_mod_sig)
+    plt.show()
+
+    exit()
     # mod_sig = tr.stack([mod_sig_b, mod_sig_b, mod_sig_b], dim=0)
     flanger = MonoFlangerChorusModule(3, 1, n_samples, sr, 0.0, 5.0)
     chorus = MonoFlangerChorusModule(3, 1, n_samples, sr, 30.0, 10.0)

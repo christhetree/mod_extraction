@@ -4,6 +4,7 @@ import random
 import shutil
 
 import torchaudio
+from torchaudio.transforms import Resample
 from tqdm import tqdm
 
 from lfo_tcn.paths import DATA_DIR
@@ -48,7 +49,10 @@ def split_egfx(root_dir: str, val_split: float = 0.3) -> None:
                 shutil.copyfile(file_path, dest_path)
 
 
-def split_egfx_from_existing(root_dir: str, new_name: str, prev_name: str = "clean") -> None:
+def split_egfx_from_existing(root_dir: str,
+                             new_name: str,
+                             prev_name: str = "clean",
+                             new_sr: int = 48000) -> None:
     existing_paths = []
     for root_dir_2, _, file_names in os.walk(os.path.join(root_dir)):
         for file_name in file_names:
@@ -65,7 +69,14 @@ def split_egfx_from_existing(root_dir: str, new_name: str, prev_name: str = "cle
         assert os.path.basename(src_path) == os.path.basename(dest_path)
         os.makedirs(os.path.dirname(src_path), exist_ok=True)
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        shutil.copyfile(src_path, dest_path)
+        src_sr = torchaudio.info(src_path).sample_rate
+        if src_sr != new_sr:
+            src_audio, src_sr = torchaudio.load(src_path)
+            resampler = Resample(src_sr, new_sr)
+            new_audio = resampler(src_audio)
+            torchaudio.save(dest_path, new_audio, new_sr)
+        else:
+            shutil.copyfile(src_path, dest_path)
 
 
 def split_idmt_4(root_dir: str, val_split: float = 0.3, offset_n_bars: int = 3) -> None:
@@ -112,7 +123,7 @@ def split_idmt_4(root_dir: str, val_split: float = 0.3, offset_n_bars: int = 3) 
 if __name__ == "__main__":
     # split_egfx(os.path.join(DATA_DIR, "egfx_phaser"))
     # split_idmt_4(os.path.join(DATA_DIR, "idmt_4"), 0.25)
-    # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "phaser")
+    # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "clean_44100", new_sr=44100)
     # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "flanger")
     # split_egfx_from_existing(os.path.join(DATA_DIR, "egfx_clean"), "chorus")
     pass

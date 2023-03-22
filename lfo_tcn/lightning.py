@@ -75,24 +75,68 @@ class LFOExtraction(BaseLightingModule):
         self.sr = sr
         self.use_dry = use_dry
         self.sub_batch_size = sub_batch_size
+        # self.bce = nn.BCELoss()
+        # self.bce_acc = BinaryAccuracy(threshold=0.5, ignore_index=0)
 
     def forward(self, x: T) -> T:
         return self.model(x)
 
     def common_step(self,
-                    batch: (Optional[T], T, T, Dict[str, T]),
-                    is_training: bool) -> (T, Dict[str, T], Dict[str, T]):
+                    batch: (Optional[T], T, Optional[T], Optional[Dict[str, T]]),
+                    is_training: bool) -> (T, Dict[str, T], Optional[Dict[str, T]]):
         prefix = "train" if is_training else "val"
         dry, wet, mod_sig, fx_params = batch
+
         if self.use_dry:
             assert dry is not None
             mod_sig_hat = self.model(tr.cat([dry, wet], dim=1)).squeeze(1)
+            # corners_hat = self.model(tr.cat([dry, wet], dim=1)).squeeze(1)
         else:
             mod_sig_hat = self.model(wet).squeeze(1)
+            # corners_hat = self.model(wet).squeeze(1)
+
+        if mod_sig is None:
+            mod_sig = tr.zeros_like(mod_sig_hat)
+
+        # top_corners, bottom_corners = mod_sig_to_corners(mod_sig, corners_hat.size(-1))
+        # corners = tr.stack([top_corners, bottom_corners], dim=1).float()
+
+        # loss = self.bce(corners_hat, corners)
+        # acc = self.bce_acc(corners_hat, corners)
+
+        # mask = corners == 1.0
+        # corners_hat_masked = corners_hat[mask]
+        # corners_masked = corners[mask]
+        # loss = self.bce(corners_hat_masked, corners_masked)
+        # acc = self.bce_acc(corners_hat_masked, corners_masked)
+
+        # self.log(
+        #     f"{prefix}/loss",
+        #     loss,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     logger=True,
+        #     sync_dist=True,
+        # )
+        # self.log(
+        #     f"{prefix}/acc",
+        #     acc,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     logger=True,
+        #     sync_dist=True,
+        # )
+
+        # top_corners_hat = tr.round(corners_hat[:, 0, :]).long()
+        # bottom_corners_hat = tr.round(corners_hat[:, 1, :]).long()
+        # mod_sig_hat = [corners_to_mod_sig(t_c, b_c) for t_c, b_c in zip(top_corners_hat, bottom_corners_hat)]
+        # mod_sig_hat = tr.stack(mod_sig_hat, dim=0)
+
         mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
         assert mod_sig.shape == mod_sig_hat.shape
 
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
+        # self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
 
         data_dict = {
             "wet": wet.detach().float().cpu(),
@@ -100,22 +144,24 @@ class LFOExtraction(BaseLightingModule):
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
         }
         if dry is not None:
-            data_dict["dry"] = dry.detach().float().cpu(),
+            data_dict["dry"] = dry.detach().float().cpu()
 
-        fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
+        if fx_params is not None:
+            fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
         # TODO(cm)
         # for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],
         #                                       data_dict["wet"],
         #                                       data_dict["mod_sig_hat"])):
-        #     # if "mod_sig" in data_dict:
-        #     #     m = data_dict["mod_sig"][idx]
-        #     #     plt.plot(m)
+        #     if "mod_sig" in data_dict:
+        #         m = data_dict["mod_sig"][idx]
+        #         plt.plot(m)
         #     plt.plot(m_h)
         #     plt.title(f"mod_sig_{idx}")
         #     plt.show()
         #     # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
         #     plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+        # exit()
 
         return loss, data_dict, fx_params
 

@@ -1,0 +1,109 @@
+seed_everything: 42
+
+custom:
+  project_name: lfo_tcn
+  model_name: lfo_2dcnn_32_64_96_io
+#  dataset_name: fl_v_ch__idmt_4_ibanez_fast
+  dataset_name: ph_all2_idmt_4_fl_ch_idmt_4_ibanez_fast
+  cpu_batch_size: 5
+  cpu_train_num_examples_per_epoch: 10
+  cpu_val_num_examples_per_epoch: 5
+
+trainer:
+  accelerator: gpu
+  benchmark: false
+  devices: [5]
+  max_epochs: 200
+  num_sanity_val_steps: 2
+
+data:
+  class_path: lfo_tcn.data_modules.InterwovenDataModule
+  init_args:
+    batch_size: 100
+    num_workers: 12
+    shared_args:
+      use_debug_mode: false
+      n_samples: 88200
+      sr: 44100
+    shared_train_args:
+      num_examples_per_epoch: 10000
+    shared_val_args:
+      num_examples_per_epoch: 2000
+    train_dataset_args:
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_varied_params/train
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_varied_params/train
+      - dataset_name: pedalboard_phaser
+        input_dir: ../data/idmt_4/train
+        ext: wav
+        silence_fraction_allowed: 0.1
+        silence_threshold_energy: 1e-4
+        n_retries: 10
+        check_dataset: false
+        fx_config:
+          pedalboard_phaser:
+            rate_hz:
+              min: 0.1
+              max: 5.0
+            depth:
+              min: 0.2
+              max: 1.0
+            centre_frequency_hz:
+              min: 70.0
+              max: 18000.0
+            feedback:
+              min: 0.0
+              max: 0.7
+            mix:
+              min: 1.0
+              max: 1.0
+    val_dataset_args:
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_varied_params/val
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/val
+      - dataset_name: random_preproc
+        input_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_varied_params/val
+      - dataset_name: pedalboard_phaser
+        input_dir: ../data/idmt_4/val
+        ext: wav
+        silence_fraction_allowed: 0.1
+        silence_threshold_energy: 1e-4
+        n_retries: 10
+        check_dataset: false
+        fx_config:
+          pedalboard_phaser:
+            rate_hz:
+              min: 0.1
+              max: 5.0
+            depth:
+              min: 0.2
+              max: 1.0
+            centre_frequency_hz:
+              min: 70.0
+              max: 18000.0
+            feedback:
+              min: 0.0
+              max: 0.7
+            mix:
+              min: 1.0
+              max: 1.0
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model: ../configs/models/spectral_2dcnn.yml
+    use_dry: true
+    loss_dict:
+      fdl1: 1.0
+      l1: 0.1
+      mse: 0.0
+
+optimizer: ../configs/opt/adam_w.yml

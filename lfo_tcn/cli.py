@@ -57,13 +57,13 @@ class CustomLightningCLI(LightningCLI):
         parser.add_argument("custom.use_wandb", default=True)
         parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
 
-        # parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
+        parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
         # parser.link_arguments("data.init_args.n_samples", "model.init_args.lfo_model.init_args.n_samples")  # TODO
         # parser.link_arguments("data.init_args.n_samples", "model.init_args.param_model.init_args.n_samples")  # TODO
-        # parser.link_arguments("data.init_args.sr", "model.init_args.sr")
+        parser.link_arguments("data.init_args.sr", "model.init_args.sr")
 
-        parser.link_arguments("data.init_args.shared_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
-        parser.link_arguments("data.init_args.shared_args.sr", "model.init_args.sr")
+        # parser.link_arguments("data.init_args.shared_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
+        # parser.link_arguments("data.init_args.shared_args.sr", "model.init_args.sr")
 
     def before_instantiate_classes(self) -> None:
         if self.subcommand is not None:
@@ -91,15 +91,15 @@ class CustomLightningCLI(LightningCLI):
             config.data.init_args.num_workers = 0
             # config.data.init_args.check_dataset = False  # TODO
 
-            # config.data.init_args.train_num_examples_per_epoch = config.custom.cpu_train_num_examples_per_epoch  # TODO
-            # config.data.init_args.val_num_examples_per_epoch = config.custom.cpu_val_num_examples_per_epoch  # TODO
+            config.data.init_args.train_num_examples_per_epoch = config.custom.cpu_train_num_examples_per_epoch  # TODO
+            config.data.init_args.val_num_examples_per_epoch = config.custom.cpu_val_num_examples_per_epoch  # TODO
 
             # config.data.init_args.shared_args["check_dataset"] = False  # TODO
             # config.data.init_args.shared_train_args["num_examples_per_epoch"] = config.custom.cpu_train_num_examples_per_epoch  # TODO
             # config.data.init_args.shared_val_args["num_examples_per_epoch"] = config.custom.cpu_val_num_examples_per_epoch  # TODO
         else:
-            # assert not config.data.init_args.use_debug_mode
-            assert not config.data.init_args.shared_args["use_debug_mode"]
+            assert not config.data.init_args.use_debug_mode
+            # assert not config.data.init_args.shared_args["use_debug_mode"]
 
     def before_fit(self) -> None:
         for cb in self.trainer.callbacks:
@@ -125,5 +125,5 @@ class CustomLightningCLI(LightningCLI):
                  f"{self.config.fit.custom.dataset_name} ================")
         log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
 
-    # def before_validate(self) -> None:
-    #     tr.manual_seed(42)  # TODO(cm)
+    def before_validate(self) -> None:
+        tr.manual_seed(42)  # TODO(cm)

@@ -16,6 +16,7 @@ from tqdm import tqdm
 from lfo_tcn import fx
 from lfo_tcn.fx import make_mod_signal
 from lfo_tcn.plotting import plot_spectrogram
+from lfo_tcn.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ def get_dataset_class(name: str) -> Type[Dataset]:
         return TremoloDataset
     elif name == "preproc":
         return PreprocessedDataset
+    elif name == "random_preproc":
+        return RandomPreprocessedDataset
     else:
         raise ValueError(f"Unknown dataset name: {name}")
 
@@ -434,6 +437,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
             plot_spectrogram(wet, title=f"phaser_wet_{idx}", save_name=f"phaser_wet_{idx}", sr=self.sr)
 
         fx_params = defaultdict(float, fx_params)  # TODO(cm)
+        mod_sig = linear_interpolate_last_dim(mod_sig, 882, align_corners=True)  # TODO
         return dry, wet, mod_sig, fx_params
 
     @staticmethod
@@ -455,7 +459,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         y = tr.from_numpy(board(x.numpy(), sr))
         fx_params = {
             "depth": depth,
-            "centre_frequency_hz": centre_frequency_hz,
+            # "centre_frequency_hz": centre_frequency_hz,  # TODO
             "feedback": feedback,
             "mix": mix,
             "rate_hz": rate_hz,
@@ -531,3 +535,21 @@ class PreprocessedDataset(Dataset):
             plot_spectrogram(wet, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=sr)
 
         return dry, wet, mod_sig, fx_params
+
+
+class RandomPreprocessedDataset(PreprocessedDataset):
+    def __init__(self,
+                 num_examples_per_epoch: int,
+                 input_dir: str,
+                 n_samples: int,
+                 sr: float,
+                 use_debug_mode: bool = False) -> None:
+        super().__init__(input_dir, n_samples, sr, use_debug_mode)
+        self.num_examples_per_epoch = num_examples_per_epoch
+
+    def __len__(self) -> int:
+        return self.num_examples_per_epoch
+
+    def __getitem__(self, idx: int) -> (T, T, T, Dict[str, Any]):
+        rand_idx = RandomAudioChunkDataset.randint(0, len(self.pt_paths))
+        return super().__getitem__(rand_idx)

@@ -2,9 +2,7 @@ seed_everything: 43
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_tcn_fdl1_l1-1
-#  dataset_name: fl_4shapes_rate_egfx_clean
-#  dataset_name: fl_4shapes_all2_egfx_clean
+  model_name: lfo_tcn
   dataset_name: fl_4shapes_rate_idmt_4_ibanez_fast
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
