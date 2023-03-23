@@ -13,7 +13,7 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 if __name__ == "__main__":
     model_dir = MODELS_DIR
-    model_name = "lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925"
+    model_name = "lfo_2dcnn_32_64_96_io__ph_all2_idmt_4_fl_ch_idmt_4_ibanez_fast__epoch_182_step_18300"
     pt_module_attr_name = "model"
 
     config_path = os.path.join(model_dir, f"{model_name}.yml")

@@ -3,16 +3,12 @@ seed_everything: 42
 custom:
   project_name: lfo_tcn
   model_name: lfo_2dcnn_32_64_96_io
-#  dataset_name: fl_v_ch__idmt_4_ibanez_fast
   dataset_name: ph_all2_idmt_4_fl_ch_idmt_4_ibanez_fast
-  cpu_batch_size: 5
-  cpu_train_num_examples_per_epoch: 10
-  cpu_val_num_examples_per_epoch: 5
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [5]
+  devices: [2]
   max_epochs: 200
   num_sanity_val_steps: 2
 

@@ -3,12 +3,11 @@ ckpt_path: ../models/lfo_2dcnn_32_64_96_io__ph_all2_idmt_4_fl_ch_idmt_4_ibanez_f
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_2dcnn_32_64_96_io
-  dataset_name: egfx_ph
-  #  dataset_name: ph_rate_idmt_4
-  cpu_batch_size: 128
-  cpu_train_num_examples_per_epoch: 15
-  cpu_val_num_examples_per_epoch: 128
+  model_name: val_model
+  dataset_name: val_dataset
+#  cpu_batch_size: 8
+  cpu_batch_size: 50
+  cpu_val_num_examples_per_epoch: 50
 
 trainer:
   accelerator: gpu
@@ -24,12 +23,12 @@ trainer:
 #    use_debug_mode: true
 #    dry_train_dir: ../data/egfx_clean_44100/train
 #    dry_val_dir: ../data/egfx_clean_44100/val
-##    wet_train_dir: ../data/egfx_phaser_44100/train
-##    wet_val_dir: ../data/egfx_phaser_44100/val
+#    wet_train_dir: ../data/egfx_phaser_44100/train
+#    wet_val_dir: ../data/egfx_phaser_44100/val
 ##    wet_train_dir: ../data/egfx_flanger_44100/train
 ##    wet_val_dir: ../data/egfx_flanger_44100/val
-#    wet_train_dir: ../data/egfx_chorus_44100/train
-#    wet_val_dir: ../data/egfx_chorus_44100/val
+##    wet_train_dir: ../data/egfx_chorus_44100/train
+##    wet_val_dir: ../data/egfx_chorus_44100/val
 #    train_num_examples_per_epoch: 4000
 #    val_num_examples_per_epoch: 1000
 #    n_samples: 88200
@@ -49,8 +48,8 @@ data:
     use_debug_mode: false
 #    train_dir: ../data/idmt_4_ibanez_fast/train
 #    val_dir: ../data/idmt_4_ibanez_fast/val
-    train_dir: ../data/pads/train
-    val_dir: ../data/pads/train
+    train_dir: /Users/puntland/local_christhetree/datasets/VocalSet11/FULL
+    val_dir: /Users/puntland/local_christhetree/datasets/VocalSet11/FULL
     train_num_examples_per_epoch: 4000
     val_num_examples_per_epoch: 1000
     n_samples: 88200
@@ -80,17 +79,17 @@ data:
 #          - sqr
         exp: 1.0
       flanger:
-        min_delay_ms: 1.0
-#        min_delay_ms: 20.0
-        max_lfo_delay_ms: 4.0
-#        max_lfo_delay_ms: 10.0
+#        min_delay_ms: 1.0
+        min_delay_ms: 20.0
+#        max_lfo_delay_ms: 4.0
+        max_lfo_delay_ms: 10.0
         feedback:
 #          min: 0.0
 #          max: 0.0
           min: 0.0
           max: 0.7
         width:
-          min: 0.25
+          min: 1.0
           max: 1.0
         depth:
 #          min: 1.0
@@ -100,6 +99,57 @@ data:
         mix:
           min: 1.0
           max: 1.0
+
+#data:
+#  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
+#  init_args:
+#    batch_size: 50
+#    num_workers: 12
+#    use_debug_mode: false
+##    train_dir: ../data/idmt_4/train
+##    val_dir: ../data/idmt_4/val
+#    train_dir: /Users/puntland/local_christhetree/datasets/VocalSet11/FULL
+#    val_dir: /Users/puntland/local_christhetree/datasets/VocalSet11/FULL
+#    train_num_examples_per_epoch: 1600
+#    val_num_examples_per_epoch: 400
+#    n_samples: 88200
+#    sr: 44100
+#    ext: wav
+#    silence_fraction_allowed: 0.1
+#    silence_threshold_energy: 1e-4
+#    n_retries: 10
+#    check_dataset: false
+#    fx_config:
+#      pedalboard_phaser:
+#        rate_hz:
+#          min: 0.1
+##          min: 0.5
+##          max: 3.0
+#          max: 5.0
+#        depth:
+##          min: 0.5
+##          max: 0.5
+#          min: 0.2
+##          max: 0.7
+##          min: 0.1
+#          max: 1.0
+#        centre_frequency_hz:
+##          min: 420.0
+##          max: 460.0
+##          min: 200.0
+##          max: 800.0
+#          min: 70.0
+#          max: 18000.0
+#        feedback:
+##          min: 0.5
+##          max: 0.5
+##          min: 0.2
+##          max: 0.7
+#          min: 0.0
+#          max: 0.7
+#        mix:
+#          min: 1.0
+#          max: 1.0
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction

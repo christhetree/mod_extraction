@@ -2,24 +2,24 @@ seed_everything: 44
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_2dcnn_32_64_96_io_ln_learnable
+  model_name: lfo_2dcnn_32ch_class
 #  model_name: lfo_tcn_fdl1_l1-1_lstm_no_smoothing
   dataset_name: idmt_4_ibanez_fast__4shapes_fl_fixed_params
 #  dataset_name: idmt_4_ibanez_fast__4shapes_fl_varied_params
 #  dataset_name: idmt_4_ibanez_fast__4shapes_ch_fixed_params
-  cpu_batch_size: 4
+  cpu_batch_size: 3
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [1]
-  max_epochs: 50
+  devices: [2]
+  max_epochs: 200
   num_sanity_val_steps: 2
 
 data:
   class_path: lfo_tcn.data_modules.PreprocessedDataModule
   init_args:
-    batch_size: 25
+    batch_size: 100
     n_samples: 88200
     sr: 44100
     num_workers: 8
@@ -36,6 +36,7 @@ model:
   init_args:
 #    model: ../configs/models/spectral_tcn.yml
     model: ../configs/models/spectral_2dcnn.yml
+    use_dry: true
     loss_dict:
       fdl1: 1.0
 #      fdl1: 0.0

@@ -13,9 +13,9 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 torch.set_float32_matmul_precision("high")
 
 if __name__ == "__main__":
-    config_name = "train_lfo_phaser.yml"
+    # config_name = "train_lfo_phaser.yml"
     # config_name = "train_lfo_flanger.yml"
-    # config_name = "train_lfo_preproc.yml"
+    config_name = "train_lfo_preproc.yml"
     # config_name = "train_lfo_interwoven.yml"
     # config_name = "train_lfo_interwoven_preproc.yml"
     # config_name = "train_lfo_interwoven_all.yml"

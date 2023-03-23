@@ -146,6 +146,17 @@ class Spectral2DCNN(nn.Module):
 
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
+        # fc_dim = out_channels[-1] // 2
+        # self.phase_fc = nn.Linear(out_channels[-1], fc_dim)
+        # self.phase_act = nn.PReLU()
+        # self.phase_out = nn.Linear(fc_dim, 1)
+        # self.freq_fc = nn.Linear(out_channels[-1], fc_dim)
+        # self.freq_act = nn.PReLU()
+        # self.freq_out = nn.Linear(fc_dim, 1)
+        # self.shape_fc = nn.Linear(out_channels[-1], fc_dim)
+        # self.shape_act = nn.PReLU()
+        # self.shape_out = nn.Linear(fc_dim, 4)
+
     def forward(self, x: T) -> T:
         assert x.ndim == 3
         x = self.spectrogram(x)
@@ -166,8 +177,10 @@ class Spectral2DCNN(nn.Module):
 
         x = self.cnn(x)
         x = tr.mean(x, dim=-2)
+        # latent = tr.mean(x, dim=-2)
 
         x = self.output(x)
+        # x = self.output(latent)
         x = tr.sigmoid(x)
 
         if self.smooth_n_frames > 1:
@@ -180,7 +193,28 @@ class Spectral2DCNN(nn.Module):
             x -= x_min
             x *= (1.0 / (x_max - x_min))
 
+        # mod_sig_hat = x
+        #
+        # x = tr.chunk(latent, 15, dim=-1)
+        # x = tr.stack(x, dim=1)
+        # latent_2 = tr.mean(x, dim=-1)
+        #
+        # x = self.phase_fc(latent_2)
+        # x = self.phase_act(x)
+        # x = self.phase_out(x)
+        # phase_hat = tr.relu(x)
+        # x = self.freq_fc(latent_2)
+        # x = self.freq_act(x)
+        # x = self.freq_out(x)
+        # freq_hat = tr.relu(x)
+        # x = self.shape_fc(latent_2)
+        # x = self.shape_act(x)
+        # x = self.shape_out(x)
+        # x = tr.softmax(x, dim=-1)
+        # shape_hat = x.swapaxes(1, 2)
+
         return x
+        # return mod_sig_hat, phase_hat.squeeze(-1), freq_hat.squeeze(-1), shape_hat
 
 
 class SpectralDSTCN(nn.Module):

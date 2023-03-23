@@ -1,7 +1,9 @@
 import logging
 import os
+from typing import Optional, Dict, Any
 
 import torch as tr
+import yaml
 from jsonargparse import lazy_instance
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.cli import LightningCLI, LightningArgumentParser
@@ -9,6 +11,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
 
 from lfo_tcn.callbacks import LogSpecAndModSigCallback, LogAudioCallback
+from lfo_tcn.paths import CONFIGS_DIR
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -16,10 +19,10 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 class CustomLightningCLI(LightningCLI):
+    # TODO(cm): move to yaml
     trainer_defaults = {
         "accelerator": "gpu",
         "callbacks": [
-            # TODO(cm): use text instead?
             LearningRateMonitor(logging_interval="step"),
             LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
             # LogAudioCallback(n_examples=4, log_dry_audio=True),
@@ -45,31 +48,67 @@ class CustomLightningCLI(LightningCLI):
         "strategy": lazy_instance(DDPStrategy, find_unused_parameters=False),
     }
 
+    def __init__(self, cli_config_path: Optional[str] = None, *args, **kwargs) -> None:
+        if cli_config_path is None:
+            cli_config_path = os.path.join(CONFIGS_DIR, "cli_config.yml")
+        assert os.path.isfile(cli_config_path)
+        with open(cli_config_path, "r") as in_f:
+            self.cli_config = yaml.safe_load(in_f)
+        super().__init__(*args, **kwargs)
+
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
-        parser.add_argument("custom.project_name", default="testing")
-        parser.add_argument("custom.model_name", default="testing")
-        parser.add_argument("custom.dataset_name", default="testing")
-        parser.add_argument("custom.cpu_model_name", default="testing")
-        parser.add_argument("custom.cpu_dataset_name", default="testing")
-        parser.add_argument("custom.cpu_batch_size", default=5)
-        parser.add_argument("custom.cpu_train_num_examples_per_epoch", default=15)
-        parser.add_argument("custom.cpu_val_num_examples_per_epoch", default=10)
-        parser.add_argument("custom.use_wandb", default=True)
-        parser.link_arguments("custom.project_name", "trainer.logger.init_args.name")
+        for add_arg in self.cli_config["additional_arguments"]:
+            name = add_arg["name"]
+            default = add_arg.get("default")
+            if default is not None:
+                parser.add_argument(name, default=default)
+            else:
+                parser.add_argument(name)
 
-        parser.link_arguments("data.init_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
-        # parser.link_arguments("data.init_args.n_samples", "model.init_args.lfo_model.init_args.n_samples")  # TODO
-        # parser.link_arguments("data.init_args.n_samples", "model.init_args.param_model.init_args.n_samples")  # TODO
-        parser.link_arguments("data.init_args.sr", "model.init_args.sr")
+        for link_args in self.cli_config["link_arguments"]:
+            parser.link_arguments(link_args["src"], link_args["dest"])
 
-        # parser.link_arguments("data.init_args.shared_args.n_samples", "model.init_args.model.init_args.n_samples")  # TODO
-        # parser.link_arguments("data.init_args.shared_args.sr", "model.init_args.sr")
+    def link_arguments_if_possible(self, src: str, dest: str, config: Dict[str, Any], is_strict: bool = False) -> None:
+        src_tokens = src.split(".")
+        dest_tokens = dest.split(".")
+        assert len(dest_tokens) > 1
+        dest_key = dest_tokens[-1]
+        dest_tokens = dest_tokens[:-1]
+        src_val = config
+        for src_token in src_tokens:
+            if is_strict:
+                assert src_token in src_val, f"Missing src of linked arguments: {src}"
+            elif src_token not in src_val:
+                log.debug(f"Unable to link src: {src} and dest: {dest}; src not found")
+                return
+            src_val = src_val[src_token]
+
+        curr_dest = config
+        for dest_token in dest_tokens:
+            if dest_token not in curr_dest:
+                log.debug(f"Unable to link src: {src} and dest: {dest}; dest not found")
+                return
+            curr_dest = curr_dest[dest_token]
+
+        if dest_key in curr_dest and curr_dest[dest_key] != src_val:
+            log.info(f"Dest {dest} already exists: {curr_dest[dest_key]}, overriding it with {src_val}")
+        curr_dest[dest_key] = src_val
+        return
+
+    def update_config(self, config: Dict[str, Any]) -> None:
+        for link_args in self.cli_config["link_arguments_if_possible"]:
+            src = link_args["src"]
+            dest = link_args["dest"]
+            self.link_arguments_if_possible(src, dest, config)
 
     def before_instantiate_classes(self) -> None:
         if self.subcommand is not None:
             config = self.config[self.subcommand]
+            self.update_config(config)
         else:
             config = self.config
+            self.update_config(config)
+
         devices = config.trainer.devices
         if isinstance(devices, list):
             cuda_flag = f'{",".join([str(d) for d in devices])}'
@@ -82,24 +121,27 @@ class CustomLightningCLI(LightningCLI):
             config.trainer.strategy = None
 
         if not tr.cuda.is_available():
-            config.custom.model_name = config.custom.cpu_model_name
-            config.custom.dataset_name = config.custom.cpu_dataset_name
             config.trainer.accelerator = None
             config.trainer.devices = None
             config.trainer.strategy = None
             config.data.init_args.batch_size = config.custom.cpu_batch_size
             config.data.init_args.num_workers = 0
-            # config.data.init_args.check_dataset = False  # TODO
 
-            config.data.init_args.train_num_examples_per_epoch = config.custom.cpu_train_num_examples_per_epoch  # TODO
-            config.data.init_args.val_num_examples_per_epoch = config.custom.cpu_val_num_examples_per_epoch  # TODO
+            for link_args in self.cli_config["cpu_link_arguments_if_possible"]:
+                src = link_args["src"]
+                dest = link_args["dest"]
+                self.link_arguments_if_possible(src, dest, config)
 
-            # config.data.init_args.shared_args["check_dataset"] = False  # TODO
-            # config.data.init_args.shared_train_args["num_examples_per_epoch"] = config.custom.cpu_train_num_examples_per_epoch  # TODO
-            # config.data.init_args.shared_val_args["num_examples_per_epoch"] = config.custom.cpu_val_num_examples_per_epoch  # TODO
+            # TODO: make generic
+            if "shared_args" in config.data.init_args or "shared_train_args" in config.data.init_args:
+                del config.data.init_args["train_num_examples_per_epoch"]
+                del config.data.init_args["val_num_examples_per_epoch"]
         else:
-            assert not config.data.init_args.use_debug_mode
-            # assert not config.data.init_args.shared_args["use_debug_mode"]
+            # TODO: make generic
+            if "shared_args" in config.data.init_args:
+                assert not config.data.init_args.shared_args["use_debug_mode"]
+            else:
+                assert not config.data.init_args.use_debug_mode
 
     def before_fit(self) -> None:
         for cb in self.trainer.callbacks:
@@ -125,5 +167,5 @@ class CustomLightningCLI(LightningCLI):
                  f"{self.config.fit.custom.dataset_name} ================")
         log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
 
-    def before_validate(self) -> None:
-        tr.manual_seed(42)  # TODO(cm)
+    # def before_validate(self) -> None:
+    #     tr.manual_seed(42)  # TODO(cm)

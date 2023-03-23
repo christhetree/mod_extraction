@@ -5,16 +5,13 @@ custom:
   model_name: lfo_2dcnn_32_64_96_io
 #  dataset_name: fl_v_ch__idmt_4_ibanez_fast
   dataset_name: ch_v_fl__idmt_4_ibanez_fast
-  cpu_batch_size: 3
-  cpu_train_num_examples_per_epoch: 6
-  cpu_val_num_examples_per_epoch: 3
 
 trainer:
   accelerator: gpu
   benchmark: false
   devices: [2]
   max_epochs: 50
-  num_sanity_val_steps: 1
+  num_sanity_val_steps: 2
 
 data:
   class_path: lfo_tcn.data_modules.InterwovenDataModule

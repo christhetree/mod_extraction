@@ -2,16 +2,13 @@ seed_everything: 42
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_2dcnn_1ch
+  model_name: lfo_2dcnn
   dataset_name: ph_rate_idmt_4_ibanez_fast
-  cpu_batch_size: 5
-  cpu_train_num_examples_per_epoch: 15
-  cpu_val_num_examples_per_epoch: 10
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [2]
+  devices: [1]
   max_epochs: 200
   num_sanity_val_steps: 2
 
@@ -19,7 +16,7 @@ data:
   class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
   init_args:
     batch_size: 50
-    num_workers: 8
+    num_workers: 12
     use_debug_mode: false
     train_dir: ../data/idmt_4_ibanez_fast/train
     val_dir: ../data/idmt_4_ibanez_fast/val
