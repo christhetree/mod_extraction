@@ -1,0 +1,51 @@
+seed_everything: 44
+
+data:
+  class_path: lfo_tcn.data_modules.FlangerCPUDataModule
+  init_args:
+    batch_size: 1000
+    train_dir: ../data/idmt_4/train
+    val_dir: ../data/idmt_4/val
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
+    n_samples: 88200
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 1e-4
+    n_retries: 10
+    check_dataset: false
+    fx_config:
+      mod_sig:
+        rate_hz:
+          min: 0.1
+          max: 3.0
+        phase:
+          min: 0.0
+          max: 6.28318530718
+        shapes:
+          - cos
+          - rect_cos
+          - inv_rect_cos
+          - tri
+          - saw
+          - rsaw
+        exp: 1.0
+      flanger:
+        max_min_delay_ms: 1.0
+        max_lfo_delay_ms: 10.0
+        feedback:
+          min: 0.0
+          max: 0.7
+        min_delay_width:
+          min: 0.0
+          max: 1.0
+        width:
+          min: 0.25
+          max: 1.0
+        depth:
+          min: 0.25
+          max: 1.0
+        mix:
+          min: 0.25
+          max: 1.0

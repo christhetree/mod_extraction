@@ -1,42 +1,47 @@
-seed_everything: 43
+#seed_everything: 44
+#seed_everything: 45
+#seed_everything: 46
+seed_everything: 47
 
 custom:
   project_name: lfo_tcn
   model_name: lfo_tcn
-  dataset_name: fl_4shapes_rate_idmt_4_ibanez_fast
-  cpu_batch_size: 5
-  cpu_train_num_examples_per_epoch: 15
-  cpu_val_num_examples_per_epoch: 10
+  dataset_name: gen_fl_all
+  cpu_batch_size: 100
+#  cpu_batch_size: 1000
+  cpu_train_num_examples_per_epoch: 200
+#  cpu_train_num_examples_per_epoch: 8000
+  cpu_val_num_examples_per_epoch: 100
+#  cpu_val_num_examples_per_epoch: 2000
+#  use_wandb: false
 
 trainer:
-  accelerator: gpu
+  accelerator: cpu
   benchmark: false
   devices: [1]
-  max_epochs: 200
-  num_sanity_val_steps: 2
+  max_epochs: 1
+  num_sanity_val_steps: 0
 
 data:
   class_path: lfo_tcn.data_modules.FlangerCPUDataModule
   init_args:
-    batch_size: 200
+    batch_size: 1000
     num_workers: 8
     use_debug_mode: false
-#    train_dir: ../data/egfx_clean/train
-#    val_dir: ../data/egfx_clean/val
-    train_dir: ../data/idmt_4_ibanez_fast/train
-    val_dir: ../data/idmt_4_ibanez_fast/val
-    train_num_examples_per_epoch: 1600
-    val_num_examples_per_epoch: 400
-#    n_samples: 96000
+    train_dir: ../data/egfx_clean_44100/train
+    val_dir: ../data/egfx_clean_44100/val
+#    train_dir: ../data/idmt_4/train
+#    val_dir: ../data/idmt_4/val
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
     n_samples: 88200
-#    sr: 48000
     sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-#    silence_threshold_energy: 1e-6
-    silence_threshold_energy: 1e-4
+    silence_threshold_energy: 1e-6
+#    silence_threshold_energy: 1e-4
     n_retries: 10
-    check_dataset: false
+    check_dataset: true
     fx_config:
       mod_sig:
         rate_hz:
@@ -50,38 +55,44 @@ data:
         shapes:
           - cos
           - rect_cos
-#          - inv_rect_cos
+          - inv_rect_cos
           - tri
           - saw
-#          - rsaw
+          - rsaw
 #          - sqr
         exp: 1.0
       flanger:
-        min_delay_ms: 1.0
-#        min_delay_ms: 20.0
-        max_lfo_delay_ms: 4.0
+#        max_min_delay_ms: 1.0
+        max_min_delay_ms: 30.0
+        max_lfo_delay_ms: 10.0
 #        max_lfo_delay_ms: 10.0
         feedback:
           min: 0.0
-          max: 0.0
+#          max: 0.0
+          max: 0.7
+        min_delay_width:
 #          min: 0.0
-#          max: 0.7
+          min: 0.367
+          max: 1.0
         width:
-          min: 1.0
+          min: 0.25
+#          min: 1.0
           max: 1.0
         depth:
-          min: 1.0
-          max: 1.0
-#          min: 0.25
+#          min: 1.0
 #          max: 1.0
+          min: 0.25
+          max: 1.0
         mix:
-          min: 1.0
+          min: 0.25
+#          min: 1.0
           max: 1.0
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
     model: ../configs/models/spectral_tcn.yml
+#    model: ../configs/models/spectral_2dcnn.yml
 #    sub_batch_size: 32
     loss_dict:
       fdl1: 1.0

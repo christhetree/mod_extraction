@@ -6,13 +6,16 @@ init_args:
   kernel_size: [5, 13]
 #  out_channels: [72, 72, 72, 72, 72]
 #  out_channels: [10, 20, 40, 80, 160]
-  out_channels: [32, 32, 64, 96, 96]
+#  out_channels: [32, 32, 64, 96, 96]
+  out_channels: [64, 64, 64, 64, 64, 64]
 #  out_channels: [1, 1, 1, 1, 1]
 #  out_channels: [1, 2, 4, 8, 16]
 #  out_channels: [32, 32, 32, 32, 32]
-  temp_dilations: [1, 2, 4, 8, 16]
-  pool_size: [3, 1]
+#  temp_dilations: [1, 2, 4, 8, 16]
+  temp_dilations: [1, 1, 2, 4, 8, 16]
+#  pool_size: [3, 1]
+  pool_size: [2, 1]
   latent_dim: 1
-  smooth_n_frames: 8
+  smooth_n_frames: 4
   use_ln: true
   scale_output: false

@@ -72,11 +72,33 @@ class FirstDerivativeL1Loss(torch.nn.Module):
         self.l1 = nn.L1Loss()
 
     def forward(self, input: T, target: T) -> T:
-        input_prime = input[..., 1:] - input[..., :-1]
-        target_prime = target[..., 1:] - target[..., :-1]
-        l1 = self.l1(input_prime, target_prime)
-        loss = l1 / 2.0  # l1 of the first derivative can be twice as large
+        input_prime = self.calc_first_derivative(input)
+        target_prime = self.calc_first_derivative(target)
+        loss = self.l1(input_prime, target_prime)
         return loss
+
+    @staticmethod
+    def calc_first_derivative(x: T) -> T:
+        assert x.size(-1) > 2
+        return (x[..., 2:] - x[..., :-2]) / 2.0
+
+
+class SecondDerivativeL1Loss(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.l1 = nn.L1Loss()
+
+    def forward(self, input: T, target: T) -> T:
+        input_prime = self.calc_second_derivative(input)
+        target_prime = self.calc_second_derivative(target)
+        loss = self.l1(input_prime, target_prime)
+        return loss
+
+    @staticmethod
+    def calc_second_derivative(x: T) -> T:
+        d1 = FirstDerivativeL1Loss.calc_first_derivative(x)
+        d2 = FirstDerivativeL1Loss.calc_first_derivative(d1)
+        return d2
 
 
 def apply_reduction(losses, reduction="none"):
@@ -93,6 +115,8 @@ def get_loss_func_by_name(name: str) -> nn.Module:
         return nn.L1Loss()
     elif name == "fdl1":
         return FirstDerivativeL1Loss()
+    elif name == "sdl1":
+        return SecondDerivativeL1Loss()
     elif name == "mse":
         return nn.MSELoss()
     elif name == "esr":

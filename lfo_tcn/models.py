@@ -6,7 +6,7 @@ from typing import Optional, List, Tuple
 import torch as tr
 from torch import Tensor as T
 from torch import nn
-from torchaudio.transforms import Spectrogram
+from torchaudio.transforms import Spectrogram, MelSpectrogram, FrequencyMasking
 
 from lfo_tcn.tcn import TCN
 
@@ -123,21 +123,26 @@ class Spectral2DCNN(nn.Module):
         if temp_dilations is None:
             temp_dilations = [2 ** idx for idx in range(len(out_channels))]
         self.temp_dilations = temp_dilations
+        assert len(out_channels) == len(bin_dilations) == len(temp_dilations)
 
-        self.spectrogram = Spectrogram(n_fft, hop_length=hop_len, normalized=False)
-        n_bin = n_fft // 2 + 1
+        # self.spectrogram = Spectrogram(n_fft, hop_length=hop_len, normalized=False)
+        # n_bin = n_fft // 2 + 1
+
+        # TODO(cm): add to config
+        self.spectrogram = MelSpectrogram(n_fft=n_fft, hop_length=hop_len, normalized=False, sample_rate=44100, n_mels=256)
+        n_bin = 256
+
         n_frames = n_samples // hop_len + 1
         temporal_dims = [n_frames] * len(out_channels)
+
+        self.freq_masking = FrequencyMasking(freq_mask_param=int(0.5 * n_frames))
+        # self.time_masking = TimeMasking(time_mask_param=int(0.5 * n_frames))
 
         layers = []
         for out_ch, b_dil, t_dil, temp_dim in zip(out_channels, bin_dilations, temp_dilations, temporal_dims):
             if use_ln:
                 layers.append(nn.LayerNorm([in_ch, n_bin, temp_dim], elementwise_affine=False))
-                # layers.append(nn.BatchNorm2d(in_ch, affine=False))
             layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=(1, 1), dilation=(b_dil, t_dil), padding="same"))
-            # padding = (kernel_size[0] // 2 * b_dil, kernel_size[1] // 2 * t_dil)
-            # layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=pool_size, dilation=(b_dil, t_dil), padding=padding))
-            # n_bin = math.ceil(n_bin / pool_size[0])
             layers.append(nn.MaxPool2d(kernel_size=pool_size))
             layers.append(nn.PReLU(num_parameters=out_ch))
             in_ch = out_ch
@@ -146,41 +151,20 @@ class Spectral2DCNN(nn.Module):
 
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
-        # fc_dim = out_channels[-1] // 2
-        # self.phase_fc = nn.Linear(out_channels[-1], fc_dim)
-        # self.phase_act = nn.PReLU()
-        # self.phase_out = nn.Linear(fc_dim, 1)
-        # self.freq_fc = nn.Linear(out_channels[-1], fc_dim)
-        # self.freq_act = nn.PReLU()
-        # self.freq_out = nn.Linear(fc_dim, 1)
-        # self.shape_fc = nn.Linear(out_channels[-1], fc_dim)
-        # self.shape_act = nn.PReLU()
-        # self.shape_out = nn.Linear(fc_dim, 4)
-
     def forward(self, x: T) -> T:
         assert x.ndim == 3
         x = self.spectrogram(x)
 
+        x = self.freq_masking(x)
+        # x = self.time_masking(x)
+
         x = tr.clip(x, min=self.eps)
         x = tr.log(x)
 
-        # plt.imshow(x[0, 1, :, :].detach().numpy())
-        # plt.show()
-        # n_bins = x.size(2)
-        # min_n = int(0.05 * n_bins)
-        # n = tr.randint(min_n, n_bins, size=(1,)).item()
-        # n = int(RandomAudioChunkDataset.sample_log_uniform(float(min_n), float(n_bins)))
-        # x = x[:, :, :n, :]
-        # x = nn.functional.interpolate(x, (n_bins, x.size(3)), mode="bicubic", align_corners=True)
-        # plt.imshow(x[0, 1, :, :].detach().numpy())
-        # plt.show()
-
         x = self.cnn(x)
         x = tr.mean(x, dim=-2)
-        # latent = tr.mean(x, dim=-2)
 
         x = self.output(x)
-        # x = self.output(latent)
         x = tr.sigmoid(x)
 
         if self.smooth_n_frames > 1:
@@ -193,28 +177,7 @@ class Spectral2DCNN(nn.Module):
             x -= x_min
             x *= (1.0 / (x_max - x_min))
 
-        # mod_sig_hat = x
-        #
-        # x = tr.chunk(latent, 15, dim=-1)
-        # x = tr.stack(x, dim=1)
-        # latent_2 = tr.mean(x, dim=-1)
-        #
-        # x = self.phase_fc(latent_2)
-        # x = self.phase_act(x)
-        # x = self.phase_out(x)
-        # phase_hat = tr.relu(x)
-        # x = self.freq_fc(latent_2)
-        # x = self.freq_act(x)
-        # x = self.freq_out(x)
-        # freq_hat = tr.relu(x)
-        # x = self.shape_fc(latent_2)
-        # x = self.shape_act(x)
-        # x = self.shape_out(x)
-        # x = tr.softmax(x, dim=-1)
-        # shape_hat = x.swapaxes(1, 2)
-
         return x
-        # return mod_sig_hat, phase_hat.squeeze(-1), freq_hat.squeeze(-1), shape_hat
 
 
 class SpectralDSTCN(nn.Module):

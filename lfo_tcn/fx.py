@@ -115,18 +115,18 @@ class MonoFlangerChorusModule(nn.Module):
                  n_ch: int,
                  n_samples: int,
                  sr: float,
-                 min_delay_ms: float,
+                 max_min_delay_ms: float,
                  max_lfo_delay_ms: float) -> None:
         super().__init__()
         self.batch_size = batch_size
         self.n_ch = n_ch
         self.n_samples = n_samples
         self.sr = sr
-        self.min_delay_ms = min_delay_ms
+        self.max_min_delay_ms = max_min_delay_ms
         self.max_lfo_delay_ms = max_lfo_delay_ms
-        self.min_delay_samples = int(((min_delay_ms / 1000.0) * sr) + 0.5)
+        self.max_min_delay_samples = int(((max_min_delay_ms / 1000.0) * sr) + 0.5)
         self.max_lfo_delay_samples = int(((max_lfo_delay_ms / 1000.0) * sr) + 0.5)
-        self.max_delay_samples = self.min_delay_samples + self.max_lfo_delay_samples
+        self.max_delay_samples = self.max_min_delay_samples + self.max_lfo_delay_samples
         self.register_buffer("delay_buf", tr.zeros((batch_size, n_ch, self.max_delay_samples)))
         self.register_buffer("out_buf", tr.zeros((batch_size, n_ch, n_samples)))
 
@@ -160,6 +160,7 @@ class MonoFlangerChorusModule(nn.Module):
                      x: T,
                      mod_sig: T,
                      feedback: Union[float, T],
+                     min_delay_width: Union[float, T],
                      width: Union[float, T],
                      depth: Union[float, T],
                      mix: Union[float, T]) -> T:
@@ -170,6 +171,7 @@ class MonoFlangerChorusModule(nn.Module):
         if mod_sig.ndim == 2:
             mod_sig = mod_sig.unsqueeze(1).expand(-1, n_ch, -1)
         feedback = self.check_param(feedback, batch_size, out_n_dim=2, can_be_one=False)
+        min_delay_width = self.check_param(min_delay_width, batch_size, out_n_dim=3, can_be_one=True)
         width = self.check_param(width, batch_size, out_n_dim=3, can_be_one=True)
         depth = self.check_param(depth, batch_size, out_n_dim=2, can_be_one=True)
         mix = self.check_param(mix, batch_size, out_n_dim=3, can_be_one=True)
@@ -179,7 +181,8 @@ class MonoFlangerChorusModule(nn.Module):
 
         delay_write_idx_all = tr.arange(0, n_samples) % self.max_delay_samples
         delay_write_idx_all = delay_write_idx_all.view(1, 1, -1).expand(batch_size, n_ch, -1)
-        delay_samples_all = (self.max_lfo_delay_samples * width * mod_sig) + self.min_delay_samples
+        min_delay_samples = min_delay_width * self.max_min_delay_samples
+        delay_samples_all = (self.max_lfo_delay_samples * width * mod_sig) + min_delay_samples
         delay_read_idx_all = (delay_write_idx_all - delay_samples_all + self.max_delay_samples) % self.max_delay_samples
         delay_read_fraction_all = delay_read_idx_all - tr.floor(delay_read_idx_all)
         prev_idx_all = tr.floor(delay_read_idx_all).to(tr.long)
@@ -199,17 +202,19 @@ class MonoFlangerChorusModule(nn.Module):
             self.out_buf[:, :, idx] = audio_val + (depth * interp_val)
 
         out_buf = ((1.0 - mix) * x) + (mix * self.out_buf)
+        out_buf = tr.clip(out_buf, -1.0, 1.0)  # TODO(cm): should clip flag
         return out_buf
 
     def forward(self,
                 x: T,
                 mod_sig: T,
                 feedback: Union[float, T] = 0.0,
+                min_delay_width: Union[float, T] = 1.0,
                 width: Union[float, T] = 1.0,
                 depth: Union[float, T] = 1.0,
                 mix: Union[float, T] = 1.0) -> T:
         with tr.no_grad():
-            return self.apply_effect(x, mod_sig, feedback, width, depth, mix)
+            return self.apply_effect(x, mod_sig, feedback, min_delay_width, width, depth, mix)
 
 
 if __name__ == "__main__":

@@ -255,6 +255,11 @@ class RandomAudioChunkDataset(Dataset):
     @staticmethod
     def sample_log_uniform(low: float, high: float, n: int = 1) -> Union[float, T]:
         # TODO(cm): replace with torch
+        if low == high:
+            if n == 1:
+                return low
+            else:
+                return tr.full(size=(n,), fill_value=low)
         x = loguniform.rvs(low, high, size=n)
         if n == 1:
             return float(x)
@@ -457,6 +462,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
                             feedback=feedback,
                             mix=mix))
         y = tr.from_numpy(board(x.numpy(), sr))
+        y = tr.clip(y, -1.0, 1.0)  # TODO(cm): should clip flag
         fx_params = {
             "depth": depth,
             # "centre_frequency_hz": centre_frequency_hz,  # TODO

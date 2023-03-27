@@ -75,12 +75,6 @@ class LFOExtraction(BaseLightingModule):
         self.sr = sr
         self.use_dry = use_dry
         self.sub_batch_size = sub_batch_size
-        # self.bce = nn.BCELoss()
-        # self.bce_acc = BinaryAccuracy(threshold=0.5, ignore_index=0)
-        # self.cel = nn.CrossEntropyLoss()
-        # self.mse = nn.MSELoss()
-        # self.l1 = nn.L1Loss()
-        # self.acc = MulticlassAccuracy(num_classes=4)
 
     def forward(self, x: T) -> T:
         return self.model(x)
@@ -94,94 +88,16 @@ class LFOExtraction(BaseLightingModule):
         if self.use_dry:
             assert dry is not None
             mod_sig_hat = self.model(tr.cat([dry, wet], dim=1)).squeeze(1)
-            # mod_sig_hat, phase_hat, freq_hat, shape_hat = self.model(tr.cat([dry, wet], dim=1))
-            # mod_sig_hat = mod_sig_hat.squeeze(1)
-            # corners_hat = self.model(tr.cat([dry, wet], dim=1)).squeeze(1)
         else:
             mod_sig_hat = self.model(wet).squeeze(1)
-            # mod_sig_hat, phase_hat, freq_hat, shape_hat = self.model(wet)
-            # mod_sig_hat = mod_sig_hat.squeeze(1)
-            # corners_hat = self.model(wet).squeeze(1)
-
-        # phase = fx_params["phase"].float() / (2 * tr.pi)
-        # phase = phase.view(-1, 1).repeat(1, phase_hat.size(1))
-        # freq = fx_params["rate_hz"].float() / 5.0
-        # freq = freq.view(-1, 1).repeat(1, freq_hat.size(1))
-        # shape_to_idx = {
-        #     "cos": 0,
-        #     "rect_cos": 1,
-        #     "tri": 2,
-        #     "saw": 3,
-        # }
-        # shape = tr.tensor([shape_to_idx[s] for s in fx_params["shape"]]).to(self.device)
-        # shape = nn.functional.one_hot(shape, num_classes=4).unsqueeze(-1).float()
-        # shape = shape.repeat(1, 1, shape_hat.size(-1))
-        #
-        # phase_loss = self.mse(phase_hat, phase)
-        # phase_l1 = self.l1(phase_hat, phase) * 2 * tr.pi
-        # self.log(f"{prefix}/phase_mse", phase_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f"{prefix}/phase_l1", phase_l1, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # freq_loss = self.mse(freq_hat, freq)
-        # freq_l1 = self.l1(freq_hat, freq) * 5.0
-        # self.log(f"{prefix}/freq_mse", freq_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f"{prefix}/freq_l1", freq_l1, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # shape_loss = self.cel(shape_hat, shape)
-        # shape_acc = self.acc(shape_hat, shape)
-        # self.log(f"{prefix}/shape_cel", shape_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f"{prefix}/shape_acc", shape_acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         if mod_sig is None:
             mod_sig = tr.zeros_like(mod_sig_hat)
-
-        # top_corners, bottom_corners = mod_sig_to_corners(mod_sig, corners_hat.size(-1))
-        # corners = tr.stack([top_corners, bottom_corners], dim=1).float()
-
-        # loss = self.bce(corners_hat, corners)
-        # acc = self.bce_acc(corners_hat, corners)
-
-        # mask = corners == 1.0
-        # corners_hat_masked = corners_hat[mask]
-        # corners_masked = corners[mask]
-        # loss = self.bce(corners_hat_masked, corners_masked)
-        # acc = self.bce_acc(corners_hat_masked, corners_masked)
-
-        # self.log(
-        #     f"{prefix}/loss",
-        #     loss,
-        #     on_epoch=True,
-        #     prog_bar=True,
-        #     logger=True,
-        #     sync_dist=True,
-        # )
-        # self.log(
-        #     f"{prefix}/acc",
-        #     acc,
-        #     on_epoch=True,
-        #     prog_bar=True,
-        #     logger=True,
-        #     sync_dist=True,
-        # )
-
-        # top_corners_hat = tr.round(corners_hat[:, 0, :]).long()
-        # bottom_corners_hat = tr.round(corners_hat[:, 1, :]).long()
-        # mod_sig_hat = [corners_to_mod_sig(t_c, b_c) for t_c, b_c in zip(top_corners_hat, bottom_corners_hat)]
-        # mod_sig_hat = tr.stack(mod_sig_hat, dim=0)
 
         mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
         assert mod_sig.shape == mod_sig_hat.shape
 
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
-        # self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
-
-        # loss = loss + phase_loss + freq_loss + shape_loss
-        # self.log(
-        #     f"{prefix}/loss",
-        #     loss,
-        #     on_epoch=True,
-        #     prog_bar=True,
-        #     logger=True,
-        #     sync_dist=True,
-        # )
 
         data_dict = {
             "wet": wet.detach().float().cpu(),

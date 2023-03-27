@@ -332,7 +332,7 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                                                n_ch=1,
                                                n_samples=self.n_samples,
                                                sr=self.sr,
-                                               min_delay_ms=self.fx_config["flanger"]["min_delay_ms"],
+                                               max_min_delay_ms=self.fx_config["flanger"]["max_min_delay_ms"],
                                                max_lfo_delay_ms=self.fx_config["flanger"]["max_lfo_delay_ms"])
         if stage == "fit":
             self.train_dataset = RandomAudioChunkAndModSigDataset(
@@ -372,6 +372,11 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
             self.fx_config["flanger"]["feedback"]["max"],
             n=self.batch_size,
         )
+        min_delay_width = RandomAudioChunkDataset.sample_uniform(
+            self.fx_config["flanger"]["min_delay_width"]["min"],
+            self.fx_config["flanger"]["min_delay_width"]["max"],
+            n=self.batch_size,
+        )
         width = RandomAudioChunkDataset.sample_uniform(
             self.fx_config["flanger"]["width"]["min"],
             self.fx_config["flanger"]["width"]["max"],
@@ -390,11 +395,12 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
         fx_params["depth"] = depth
         fx_params["feedback"] = feedback
         fx_params["max_lfo_delay_ms"] = self.flanger.max_lfo_delay_ms
-        fx_params["min_delay_ms"] = self.flanger.min_delay_ms
+        fx_params["max_min_delay_ms"] = self.flanger.max_min_delay_ms
+        fx_params["min_delay_width"] = min_delay_width
         fx_params["mix"] = mix
         fx_params["width"] = width
 
-        wet = self.flanger(dry, mod_sig, feedback, width, depth, mix)
+        wet = self.flanger(dry, mod_sig, feedback, min_delay_width, width, depth, mix)
 
         if self.use_debug_mode:
             for idx, (d, w, m) in enumerate(zip(dry, wet, mod_sig)):
