@@ -167,5 +167,5 @@ class CustomLightningCLI(LightningCLI):
                  f"{self.config.fit.custom.dataset_name} ================")
         log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
 
-    # def before_validate(self) -> None:
-    #     tr.manual_seed(42)  # TODO(cm)
+    def before_validate(self) -> None:
+        tr.manual_seed(42)  # TODO(cm)

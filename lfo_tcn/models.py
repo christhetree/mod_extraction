@@ -6,7 +6,7 @@ from typing import Optional, List, Tuple
 import torch as tr
 from torch import Tensor as T
 from torch import nn
-from torchaudio.transforms import Spectrogram, MelSpectrogram, FrequencyMasking
+from torchaudio.transforms import Spectrogram, MelSpectrogram, FrequencyMasking, TimeMasking
 
 from lfo_tcn.tcn import TCN
 
@@ -91,28 +91,32 @@ class Spectral2DCNN(nn.Module):
     def __init__(self,
                  in_ch: int = 1,
                  n_samples: int = 88200,
+                 sr: float = 44100,
                  n_fft: int = 1024,
                  hop_len: int = 256,
+                 n_mels: int = 256,
                  kernel_size: Tuple[int, int] = (5, 13),
                  out_channels: Optional[List[int]] = None,
                  bin_dilations: Optional[List[int]] = None,
                  temp_dilations: Optional[List[int]] = None,
                  pool_size: Tuple[int, int] = (3, 1),
                  latent_dim: int = 1,
-                 smooth_n_frames: int = 8,
+                 freq_mask_amount: float = 0.0,
+                 time_mask_amount: float = 0.0,
                  use_ln: bool = True,
-                 scale_output: bool = False,
                  eps: float = 1e-7) -> None:
         super().__init__()
+        self.sr = sr
         self.n_fft = n_fft
         self.hop_len = hop_len
+        self.n_mels = n_mels
         self.kernel_size = kernel_size
         assert pool_size[1] == 1
         self.pool_size = pool_size
         self.latent_dim = latent_dim
-        self.smooth_n_frames = smooth_n_frames
+        self.freq_mask_amount = freq_mask_amount
+        self.time_mask_amount = time_mask_amount
         self.use_ln = use_ln
-        self.scale_output = scale_output
         self.eps = eps
         if out_channels is None:
             out_channels = [64] * 5
@@ -125,28 +129,28 @@ class Spectral2DCNN(nn.Module):
         self.temp_dilations = temp_dilations
         assert len(out_channels) == len(bin_dilations) == len(temp_dilations)
 
-        # self.spectrogram = Spectrogram(n_fft, hop_length=hop_len, normalized=False)
-        # n_bin = n_fft // 2 + 1
-
-        # TODO(cm): add to config
-        self.spectrogram = MelSpectrogram(n_fft=n_fft, hop_length=hop_len, normalized=False, sample_rate=44100, n_mels=256)
-        n_bin = 256
+        self.spectrogram = MelSpectrogram(n_fft=n_fft,
+                                          hop_length=hop_len,
+                                          normalized=False,
+                                          sample_rate=int(sr),
+                                          n_mels=n_mels)
+        n_bins = n_mels
 
         n_frames = n_samples // hop_len + 1
         temporal_dims = [n_frames] * len(out_channels)
 
-        self.freq_masking = FrequencyMasking(freq_mask_param=int(0.5 * n_frames))
-        # self.time_masking = TimeMasking(time_mask_param=int(0.5 * n_frames))
+        self.freq_masking = FrequencyMasking(freq_mask_param=int(freq_mask_amount * n_bins))
+        self.time_masking = TimeMasking(time_mask_param=int(time_mask_amount * n_frames))
 
         layers = []
         for out_ch, b_dil, t_dil, temp_dim in zip(out_channels, bin_dilations, temp_dilations, temporal_dims):
             if use_ln:
-                layers.append(nn.LayerNorm([in_ch, n_bin, temp_dim], elementwise_affine=False))
+                layers.append(nn.LayerNorm([in_ch, n_bins, temp_dim], elementwise_affine=False))
             layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=(1, 1), dilation=(b_dil, t_dil), padding="same"))
             layers.append(nn.MaxPool2d(kernel_size=pool_size))
             layers.append(nn.PReLU(num_parameters=out_ch))
             in_ch = out_ch
-            n_bin = n_bin // pool_size[0]
+            n_bins = n_bins // pool_size[0]
         self.cnn = nn.Sequential(*layers)
 
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
@@ -155,28 +159,24 @@ class Spectral2DCNN(nn.Module):
         assert x.ndim == 3
         x = self.spectrogram(x)
 
-        x = self.freq_masking(x)
-        # x = self.time_masking(x)
+        if self.training:
+            if self.freq_mask_amount > 0:
+                x = self.freq_masking(x)
+            if self.time_mask_amount > 0:
+                x = self.time_masking(x)
 
         x = tr.clip(x, min=self.eps)
         x = tr.log(x)
+
+        # from matplotlib import pyplot as plt
+        # plt.imshow(x[0, 0, :, :])
+        # plt.show()
 
         x = self.cnn(x)
         x = tr.mean(x, dim=-2)
 
         x = self.output(x)
         x = tr.sigmoid(x)
-
-        if self.smooth_n_frames > 1:
-            x = x.unfold(dimension=-1, size=self.smooth_n_frames, step=1)
-            x = tr.mean(x, dim=-1, keepdim=False)
-
-        if self.scale_output:
-            x_min = tr.min(x.squeeze(1), dim=-1).values.view(-1, 1, 1)
-            x_max = tr.max(x.squeeze(1), dim=-1).values.view(-1, 1, 1)
-            x -= x_min
-            x *= (1.0 / (x_max - x_min))
-
         return x
 
 

@@ -10,7 +10,10 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 if __name__ == "__main__":
-    config_name = "val_lfo.yml"
+    config_name = "val_lfo_flanger.yml"
+    # config_name = "val_lfo_phaser.yml"
+    # config_name = "val_lfo_preproc.yml"
+    # config_name = "val_lfo_interwoven_all.yml"
     config_path = os.path.join(CONFIGS_DIR, config_name)
     cli = CustomLightningCLI(args=["validate", "--config", config_path],
                              trainer_defaults=CustomLightningCLI.trainer_defaults)

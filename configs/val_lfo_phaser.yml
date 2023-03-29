@@ -1,0 +1,82 @@
+seed_everything: 42
+#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_123_step_9920.ckpt
+ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
+#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
+
+custom:
+  project_name: lfo_tcn
+  model_name: val_model
+  dataset_name: val_dataset
+#  cpu_batch_size: 8
+  cpu_batch_size: 100
+  cpu_val_num_examples_per_epoch: 100
+
+trainer:
+  accelerator: gpu
+  devices: [1]
+
+data:
+  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
+  init_args:
+    batch_size: 100
+    num_workers: 8
+    use_debug_mode: false
+#    train_dir: ../data/idmt_4/train
+#    val_dir: ../data/idmt_4/val
+    train_dir: /Users/puntland/local_christhetree/datasets/VocalSet11/FULL
+    val_dir: /Users/puntland/local_christhetree/datasets/VocalSet11/FULL
+    train_num_examples_per_epoch: 1600
+    val_num_examples_per_epoch: 400
+    n_samples: 88200
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 1e-4
+    n_retries: 10
+    check_dataset: false
+    fx_config:
+      pedalboard_phaser:
+        rate_hz:
+#          min: 0.1
+          min: 0.5
+          max: 3.0
+#          max: 5.0
+        depth:
+          min: 0.5
+          max: 0.5
+#          min: 0.2
+#          max: 0.7
+#          min: 0.1
+#          max: 1.0
+        centre_frequency_hz:
+#          min: 420.0
+#          max: 460.0
+          min: 200.0
+          max: 800.0
+#          min: 70.0
+#          max: 18000.0
+        feedback:
+          min: 0.5
+          max: 0.5
+#          min: 0.2
+#          max: 0.7
+#          min: 0.0
+#          max: 0.7
+        mix:
+          min: 1.0
+          max: 1.0
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model: ../configs/models/spectral_2dcnn.yml
+    use_dry: true
+    model_smooth_n_frames: 8
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 16
+    loss_dict:
+      l1: 1.0
+      fdl1: 5.0
+      sdl1: 10.0
+      mse: 0.0

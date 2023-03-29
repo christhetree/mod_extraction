@@ -3,6 +3,7 @@ init_args:
   in_ch: 2
   n_fft: 1024
   hop_len: 256
+  n_mels: 256
   kernel_size: [5, 13]
 #  out_channels: [72, 72, 72, 72, 72]
 #  out_channels: [10, 20, 40, 80, 160]
@@ -16,6 +17,6 @@ init_args:
 #  pool_size: [3, 1]
   pool_size: [2, 1]
   latent_dim: 1
-  smooth_n_frames: 4
+  freq_mask_amount: 0.0
+  time_mask_amount: 0.0
   use_ln: true
-  scale_output: false

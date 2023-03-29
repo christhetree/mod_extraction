@@ -17,8 +17,6 @@ additional_arguments:
 link_arguments:
   - src: custom.project_name
     dest: trainer.logger.init_args.name
-  - src: data.init_args.sr
-    dest: model.init_args.sr
 
 link_arguments_if_possible:
   - src: data.init_args.n_samples
@@ -37,6 +35,14 @@ link_arguments_if_possible:
     dest: model.init_args.sr
   - src: data.init_args.shared_args.sr
     dest: model.init_args.sr
+  - src: data.init_args.sr
+    dest: model.init_args.model.init_args.sr
+  - src: data.init_args.shared_args.sr
+    dest: model.init_args.model.init_args.sr
+  - src: data.init_args.sr
+    dest: model.init_args.lfo_model.init_args.sr
+  - src: data.init_args.shared_args.sr
+    dest: model.init_args.lfo_model.init_args.sr
 
 cpu_link_arguments_if_possible:
   - src: custom.cpu_train_num_examples_per_epoch

@@ -9,6 +9,7 @@ from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
+from lfo_tcn.fx import stretch_corners
 from lfo_tcn.losses import get_loss_func_by_name
 from lfo_tcn.models import HiddenStateModel
 from lfo_tcn.util import linear_interpolate_last_dim
@@ -64,8 +65,12 @@ class BaseLightingModule(pl.LightningModule):
 class LFOExtraction(BaseLightingModule):
     def __init__(self,
                  model: nn.Module,
-                 sr: float,
+                 sr: float = 44100,
                  use_dry: bool = False,
+                 model_smooth_n_frames: int = 4,
+                 should_stretch: bool = False,
+                 max_n_corners: int = 20,
+                 stretch_smooth_n_frames: int = 16,
                  sub_batch_size: Optional[int] = None,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
@@ -74,10 +79,24 @@ class LFOExtraction(BaseLightingModule):
         self.model = model
         self.sr = sr
         self.use_dry = use_dry
+        self.model_smooth_n_frames = model_smooth_n_frames
+        self.should_stretch = should_stretch
+        self.max_n_corners = max_n_corners
+        self.stretch_smooth_n_frames = stretch_smooth_n_frames
         self.sub_batch_size = sub_batch_size
 
     def forward(self, x: T) -> T:
         return self.model(x)
+
+    def center_crop_mod_sig(self, mod_sig: T, size: int) -> T:
+        if size == mod_sig.size(-1):
+            return mod_sig
+        assert size < mod_sig.size(-1)
+        padding = mod_sig.size(-1) - size
+        pad_l = padding // 2
+        pad_r = padding - pad_l
+        mod_sig = mod_sig[:, pad_l:-pad_r]
+        return mod_sig
 
     def common_step(self,
                     batch: (Optional[T], T, Optional[T], Optional[Dict[str, T]]),
@@ -93,10 +112,22 @@ class LFOExtraction(BaseLightingModule):
 
         if mod_sig is None:
             mod_sig = tr.zeros_like(mod_sig_hat)
+        else:
+            mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
 
-        mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
         assert mod_sig.shape == mod_sig_hat.shape
+        if self.model_smooth_n_frames > 1:
+            mod_sig_hat = mod_sig_hat.unfold(dimension=-1, size=self.model_smooth_n_frames, step=1)
+            mod_sig_hat = tr.mean(mod_sig_hat, dim=-1, keepdim=False)
+            mod_sig = self.center_crop_mod_sig(mod_sig, mod_sig_hat.size(-1))
 
+        if self.should_stretch:
+            mod_sig_hat = stretch_corners(mod_sig_hat,
+                                          max_n_corners=self.max_n_corners,
+                                          smooth_n_frames=self.stretch_smooth_n_frames)
+            if self.stretch_smooth_n_frames > 1:
+                mod_sig = self.center_crop_mod_sig(mod_sig, mod_sig_hat.size(-1))
+        assert mod_sig.shape == mod_sig_hat.shape
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
 
         data_dict = {
@@ -111,20 +142,21 @@ class LFOExtraction(BaseLightingModule):
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
         # TODO(cm)
-        # for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],
-        #                                       data_dict["wet"],
-        #                                       data_dict["mod_sig_hat"])):
-        #     from matplotlib import pyplot as plt
-        #     if "mod_sig" in data_dict:
-        #         m = data_dict["mod_sig"][idx]
-        #         plt.plot(m)
-        #     plt.plot(m_h)
-        #     plt.title(f"mod_sig_{idx}")
-        #     plt.show()
-        #     from lfo_tcn.plotting import plot_spectrogram
-        #     # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
-        #     plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
-        # exit()
+        if data_dict["mod_sig_hat"].size(0) < 10:
+            from lfo_tcn.plotting import plot_spectrogram
+            for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],
+                                                  data_dict["wet"],
+                                                  data_dict["mod_sig_hat"])):
+                from matplotlib import pyplot as plt
+                if "mod_sig" in data_dict:
+                    m = data_dict["mod_sig"][idx]
+                    plt.plot(m)
+                plt.plot(m_h)
+                plt.title(f"mod_sig_{idx}")
+                plt.show()
+                # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
+                # plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+            exit()
 
         return loss, data_dict, fx_params
 

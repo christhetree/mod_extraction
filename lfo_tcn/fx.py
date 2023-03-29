@@ -3,7 +3,6 @@ import os
 from typing import Union
 
 import torch as tr
-import torchaudio
 from matplotlib import pyplot as plt
 from torch import Tensor as T, nn
 
@@ -58,23 +57,28 @@ def make_mod_signal(n_samples: int,
 
 def mod_sig_to_corners(mod_sig: T, n_frames: int) -> (T, T):
     assert mod_sig.ndim == 2
-    # left_edge = mod_sig[:, 0]
-    # right_edge = mod_sig[:, 1]
     mod_sig = linear_interpolate_last_dim(mod_sig, n_frames, align_corners=True)
+    return find_corners(mod_sig)
+
+
+def find_corners(mod_sig: T) -> (T, T):
     m_r = mod_sig[:, 1:]
     m_l = mod_sig[:, :-1]
     diff = m_r - m_l
     diff_r = diff[:, 1:]
     diff_l = diff[:, :-1]
-    diff_mult = diff_l * diff_r
-    corners = -tr.floor(diff_mult)
+    diff_pos_l = (diff_l > 0) * diff_l
+    diff_neg_l = (diff_l < 0) * diff_l
+    top_corners = diff_pos_l * (diff_r + 1e-16)
+    top_corners = -tr.floor(top_corners).long()
+    bottom_corners = diff_neg_l * (diff_r + 1e-16)
+    bottom_corners = -tr.floor(bottom_corners).long()
     tmp = tr.zeros_like(mod_sig)
-    tmp[:, 1:-1] = corners
-    corners = tmp
-    corner_vals = mod_sig * corners
-    top_corners = tr.round(corner_vals)
-    top_corners = top_corners.long()
-    bottom_corners = tr.ceil(corner_vals).long() - top_corners
+    tmp[:, 1:-1] = top_corners
+    top_corners = tmp
+    tmp = tr.zeros_like(mod_sig)
+    tmp[:, 1:-1] = bottom_corners
+    bottom_corners = tmp
     return top_corners, bottom_corners
 
 
@@ -217,27 +221,90 @@ class MonoFlangerChorusModule(nn.Module):
             return self.apply_effect(x, mod_sig, feedback, min_delay_width, width, depth, mix)
 
 
+def smoothen(x: T, smooth_n_frames: int) -> T:
+    if smooth_n_frames > 1:
+        x = x.unfold(dimension=-1, size=smooth_n_frames, step=1)
+        x = tr.mean(x, dim=-1, keepdim=False)
+    return x
+
+
+def _stretch_corners(mod_sig: T, top: T, bottom: T, top_val: float = 1.0, bot_val: float = 0.0) -> T:
+    assert mod_sig.ndim == 1
+    assert mod_sig.shape == top.shape == bottom.shape
+    top_indices = (top == 1).nonzero(as_tuple=True)[0]
+    top = [(idx.item(), top_val) for idx in top_indices]
+    bottom_indices = (bottom == 1).nonzero(as_tuple=True)[0]
+    bottom = [(idx.item(), bot_val) for idx in bottom_indices]
+    indices = top + bottom + [(mod_sig.size(0) - 1, mod_sig[-1])]
+    if not indices:
+        return mod_sig
+    indices.sort(key=lambda x: x[0])
+
+    prev_mod_idx = 0
+    prev_anchor = mod_sig[0]
+    stretched = tr.clone(mod_sig)
+    for curr_mod_idx, target_val in indices:
+        segment = stretched[prev_mod_idx + 1:curr_mod_idx + 1]
+        curr_val = mod_sig[curr_mod_idx]
+        orig_prev_anchor = mod_sig[prev_mod_idx]
+        if prev_anchor != target_val:
+            curr_range = abs(orig_prev_anchor - curr_val)
+            target_range = abs(prev_anchor - target_val)
+            scale_amount = target_range / curr_range
+            segment -= segment.min()
+            segment *= scale_amount
+            segment += target_val - segment[-1]
+            stretched[prev_mod_idx + 1:curr_mod_idx + 1] = segment
+        prev_mod_idx = curr_mod_idx
+        prev_anchor = target_val
+
+    # assert stretched.max() == top_val or stretched.min() == bot_val
+    return stretched
+
+
+def stretch_corners(mod_sig: T, max_n_corners: int = 10, smooth_n_frames: int = 32) -> T:
+    assert mod_sig.ndim == 2
+    mod_sig = smoothen(mod_sig, smooth_n_frames)
+    top_corners, bottom_corners = find_corners(mod_sig)
+    stretched_all = []
+    for m, t, b in zip(mod_sig, top_corners, bottom_corners):
+        n_corners = t.sum() + b.sum()
+        if n_corners > max_n_corners:
+            stretched = m
+        else:
+            stretched = _stretch_corners(m, t, b)
+        stretched_all.append(stretched)
+    stretched = tr.stack(stretched_all, dim=0)
+    return stretched
+
+
 if __name__ == "__main__":
-    audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__pop_2_140BPM.wav")
-    # audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__latin_1_160BPM.wav")
-    n_samples = sr * 4
-    audio = audio[:, :n_samples]
-    # audio = make_mod_signal(n_samples, sr, 220.0, shape="saw", exp=1.0)
-    audio = audio.view(1, 1, -1).repeat(3, 1, 1)
+    # audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__pop_2_140BPM.wav")
+    # # audio, sr = torchaudio.load("/Users/puntland/local_christhetree/aim/lfo_tcn/data/idmt_4/train/Ibanez 2820__latin_1_160BPM.wav")
+    # n_samples = sr * 4
+    # audio = audio[:, :n_samples]
+    # # audio = make_mod_signal(n_samples, sr, 220.0, shape="saw", exp=1.0)
+    # audio = audio.view(1, 1, -1).repeat(3, 1, 1)
 
-    mod_sig_a = make_mod_signal(n_samples, sr, 2.1, phase=0, shape="cos", exp=1.0)
+    n_samples = 12
+    sr = 6
+
+    mod_sig_a = make_mod_signal(n_samples, sr, 1.0, phase=0, shape="saw", exp=0.1)
     mod_sig_b = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="tri", exp=1.0)
-    mod_sig_c = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="sqr", exp=3.0)
-
+    mod_sig_c = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="saw", exp=1.0)
 
     mod_sig = tr.stack([mod_sig_a, mod_sig_b, mod_sig_c], dim=0)
-    mod_sig = linear_interpolate_last_dim(mod_sig, 128)
-    idx = 2
-    plt.plot(mod_sig[idx])
+    mod_sig *= 0.5
+    mod_sig += 0.2
+    stretched = stretch_corners(mod_sig)
 
-    top_corners, bottom_corners = mod_sig_to_corners(mod_sig, 128)
-    rec_mod_sig = corners_to_mod_sig(top_corners[idx], bottom_corners[idx])
-    plt.plot(rec_mod_sig)
+    idx = 0
+    plt.plot(mod_sig[idx])
+    plt.plot(stretched[idx])
+
+    # top_corners, bottom_corners = find_corners(mod_sig)
+    # rec_mod_sig = corners_to_mod_sig(top_corners[idx], bottom_corners[idx])
+    # plt.plot(top_corners[idx])
     plt.show()
 
     exit()
