@@ -1,7 +1,7 @@
 seed_everything: 42
 #ckpt_path: ../models/lfo_mel_2dcnn_64x6_io__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_123_step_9920.ckpt
-ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
-#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
+#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
+ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
 
 custom:
   project_name: lfo_tcn
@@ -21,10 +21,10 @@ data:
     batch_size: 200
     num_workers: 8
     use_debug_mode: false
-    train_dir: ../data/egfx_clean_44100/train
-    val_dir: ../data/egfx_clean_44100/val
-#    train_dir: ../data/idmt_4/train
-#    val_dir: ../data/idmt_4/val
+#    train_dir: ../data/egfx_clean_44100/train
+#    val_dir: ../data/egfx_clean_44100/val
+    train_dir: ../data/idmt_4/train
+    val_dir: ../data/idmt_4/val
     train_num_examples_per_epoch: 4000
     val_num_examples_per_epoch: 1000
     n_samples: 88200
@@ -38,21 +38,30 @@ data:
       mod_sig:
         rate_hz:
           min: 0.5
+#          min: 1.0
+#          max: 2.0
           max: 3.0
         phase:
           min: 0.0
           max: 6.28318530718
         shapes:
-#          - cos
+          - cos
 #          - rect_cos
 #          - inv_rect_cos
 #          - tri
-          - saw
-          - rsaw
+#          - saw
+#          - rsaw
 #          - sqr
-#        exp: 1.0
+        exp: 1.0
 #        exp: 0.6
-        exp: 2.0
+#        exp: 2.0
+#        quasiperiodic: true
+        quasiperiodic: false
+        l_min: 0.10
+        l_max: 0.40
+        r_min: 0.10
+        r_max: 0.40
+        lr_split: 0.5
       flanger:
         max_min_delay_ms: 1.0
 #        max_min_delay_ms: 20.0
@@ -85,9 +94,10 @@ model:
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
     model_smooth_n_frames: 8
-    should_stretch: true
+#    should_stretch: true
+    should_stretch: false
     max_n_corners: 16
-    stretch_smooth_n_frames: 4
+    stretch_smooth_n_frames: 0
     loss_dict:
       l1: 1.0
       fdl1: 5.0

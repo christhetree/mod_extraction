@@ -2,7 +2,7 @@ seed_everything: 42
 
 custom:
   project_name: lfo_tcn
-  model_name: lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_freq_mask_50
+  model_name: jtfst_kymatio_Jf4Qf1
   dataset_name: ph_fl_ch_all__idmt_4_egfx_clean_44100
   cpu_batch_size: 8
   cpu_train_num_examples_per_epoch: 16
@@ -11,7 +11,7 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [5]
+  devices: [2]
   max_epochs: 400
   num_sanity_val_steps: 2
 
@@ -22,7 +22,7 @@ model:
   init_args:
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
-    model_smooth_n_frames: 4
+    model_smooth_n_frames: 0
     should_stretch: false
     max_n_corners: 16
     stretch_smooth_n_frames: 16

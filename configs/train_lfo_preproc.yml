@@ -34,14 +34,16 @@ data:
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
-#    model: ../configs/models/spectral_tcn.yml
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
+    model_smooth_n_frames: 4
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 16
     loss_dict:
-      fdl1: 1.0
-#      fdl1: 0.0
-      l1: 0.1
-#      l1: 1.0
+      l1: 1.0
+      fdl1: 5.0
+      sdl1: 10.0
       mse: 0.0
 
 optimizer: ../configs/opt/adam_w.yml

@@ -2,18 +2,9 @@ seed_everything: 44
 
 custom:
   project_name: lfo_tcn
-#  model_name: lstm_48_gt_l1_tbp_1024
-#  model_name: lstm_48_fr_p2_tbp_1024
-#  model_name: lstm_48_ms_p2_tbp_1024
-#  model_name: lstm_48_gt_p_gt_tbp_1024
-  model_name: lstm_64_2dcnn_tbp_1024
-#  dataset_name: ph_rate_egfx_clean
-#  dataset_name: ph_fb_egfx_clean
-#  dataset_name: ph_cf_egfx_clean
-#  dataset_name: ph_all2_egfx_clean
+  model_name: lstm_64__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8
+#  model_name: lstm_64__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8_stretch8
   dataset_name: ph_rate_idmt_4
-#  dataset_name: ph_all2_idmt_4
-#  dataset_name: ph_fb_idmt_4
   cpu_batch_size: 5
   cpu_train_num_examples_per_epoch: 15
   cpu_val_num_examples_per_epoch: 10
@@ -22,23 +13,21 @@ trainer:
   accelerator: gpu
   benchmark: false
   devices: [4]
-  max_epochs: 100
+  max_epochs: 200
 
 data:
   class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
   init_args:
-    batch_size: 128
-    num_workers: 12
+    batch_size: 256
+    num_workers: 8
     use_debug_mode: false
-#    train_dir: ../data/egfx_clean/train
-#    val_dir: ../data/egfx_clean/val
+#    train_dir: ../data/egfx_clean_44100/train
+#    val_dir: ../data/egfx_clean_44100/val
     train_dir: ../data/idmt_4/train
     val_dir: ../data/idmt_4/val
-    train_num_examples_per_epoch: 4000
-    val_num_examples_per_epoch: 1000
-#    n_samples: 96000
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
     n_samples: 88200
-#    sr: 48000
     sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
@@ -51,7 +40,7 @@ data:
         rate_hz:
 #          min: 0.25
 #          min: 0.35
-          min: 0.5
+          min: 0.1
           max: 3.0
 #          max: 5.0
         depth:
@@ -62,8 +51,8 @@ data:
 #          min: 0.1
 #          max: 1.0
         centre_frequency_hz:
-          min: 420.0
-          max: 460.0
+          min: 440.0
+          max: 440.0
 #          min: 200.0
 #          max: 800.0
 #          min: 70.0
@@ -91,18 +80,16 @@ model:
         out_ch: 1
         n_hidden: 64
         latent_dim: 1
-#        latent_dim: 2
-#        latent_dim: 3
 #    lfo_model: null
-#    lfo_model: ../configs/models/spectral_tcn.yml
     lfo_model: ../configs/models/spectral_2dcnn.yml
-    lfo_model_weights_path: null
-    freeze_lfo_model: false
-#    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_egfx_clean__epoch_65_step_12870.pt
-#    lfo_model_weights_path: ../models/lfo_tcn__ph_all2_egfx_clean__epoch_53_step_10530.pt
-#    lfo_model_weights_path: ../models/lfo_tcn__ph_rate_idmt_4__epoch_14_step_2925.pt
-    param_model: null
-#    param_model: ../configs/models/spectral_ds_tcn.yml
+    lfo_model_weights_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.pt
+    freeze_lfo_model: true
+    use_dry: true
+    model_smooth_n_frames: 8
+#    should_stretch: true
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 8
     loss_dict:
       l1: 1.0
       esr: 0.0

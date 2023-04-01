@@ -1,7 +1,6 @@
 seed_everything: 42
-#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_123_step_9920.ckpt
-#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
-ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
+ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
+#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
 
 custom:
   project_name: lfo_tcn
@@ -16,29 +15,17 @@ trainer:
   devices: [1]
 
 data:
-  class_path: lfo_tcn.data_modules.RandomAudioChunkDryWetDataModule
+  class_path: lfo_tcn.data_modules.PreprocessedDataModule
   init_args:
-    batch_size: 100
-    num_workers: 8
-    use_debug_mode: true
-    dry_train_dir: ../data/egfx_clean_44100/train
-    dry_val_dir: ../data/egfx_clean_44100/val
-#    wet_train_dir: ../data/egfx_phaser_44100/train
-#    wet_val_dir: ../data/egfx_phaser_44100/val
-#    wet_train_dir: ../data/egfx_flanger_44100/train
-#    wet_val_dir: ../data/egfx_flanger_44100/val
-    wet_train_dir: ../data/egfx_chorus_44100/train
-    wet_val_dir: ../data/egfx_chorus_44100/val
-    train_num_examples_per_epoch: 4000
-    val_num_examples_per_epoch: 1000
+    batch_size: 200
     n_samples: 88200
     sr: 44100
-    ext: wav
-    silence_fraction_allowed: 0.1
-    silence_threshold_energy: 1e-6
-    n_retries: 10
-    check_dataset: false
-    end_buffer_n_samples: 1500
+    num_workers: 8
+    use_debug_mode: false
+    train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
+    val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
+#    train_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
+#    val_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/val
 
 
 model:
@@ -46,10 +33,11 @@ model:
   init_args:
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
-    model_smooth_n_frames: 4
+    model_smooth_n_frames: 8
+#    should_stretch: true
     should_stretch: false
     max_n_corners: 16
-    stretch_smooth_n_frames: 16
+    stretch_smooth_n_frames: 8
     loss_dict:
       l1: 1.0
       fdl1: 5.0

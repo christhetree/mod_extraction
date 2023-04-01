@@ -1,35 +1,30 @@
 seed_everything: 44
-#ckpt_path: ../models/lstm_48__ph_rate_egfx_clean__epoch_29_step_93750.ckpt
-#ckpt_path: ../models/lstm_48__ph_all2_egfx_clean__epoch_39_step_125000.ckpt
-#ckpt_path: ../models/lstm_48_fr__ph_rate_egfx_clean__epoch_26_step_84375.ckpt
-#ckpt_path: ../models/lstm_48_gt__ph_rate_egfx_clean__epoch_41_step_131250.ckpt
 
 custom:
   project_name: lfo_tcn
-  model_name: lstm_64_2dcnn_tbp_1024
+#  model_name: lstm_64__gt
+  model_name: lstm_64__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8__log_mel_l1
+#  model_name: lstm_64__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8_stretch8
   dataset_name: idmt_4_ibanez_fast__4shapes_fl_fixed_params
-#  dataset_name: idmt_4_ibanez_fast__4shapes_fl_varied_params
 #  dataset_name: idmt_4_ibanez_fast__4shapes_ch_fixed_params
   cpu_batch_size: 5
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [1]
-  max_epochs: 100
+  devices: [3]
+  max_epochs: 400
 
 data:
   class_path: lfo_tcn.data_modules.PreprocessedDataModule
   init_args:
-    batch_size: 128
-    num_workers: 8
+    batch_size: 200
     n_samples: 88200
     sr: 44100
+    num_workers: 8
     use_debug_mode: false
     train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
     val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
-#    train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_varied_params/train
-#    val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_varied_params/val
 #    train_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
 #    val_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/val
 
@@ -45,14 +40,21 @@ model:
         out_ch: 1
         n_hidden: 64
         latent_dim: 1
+#    lfo_model: null
     lfo_model: ../configs/models/spectral_2dcnn.yml
-    lfo_model_weights_path: null
-    freeze_lfo_model: false
-    param_model: null
-#    param_model: ../configs/models/spectral_ds_tcn.yml
+    lfo_model_weights_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.pt
+    freeze_lfo_model: true
+    use_dry: true
+    model_smooth_n_frames: 8
+#    model_smooth_n_frames: 0
+#    should_stretch: true
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 8
     loss_dict:
       l1: 1.0
       esr: 0.0
       dc: 0.0
+      log_mel_l1: 0.05
 
 optimizer: ../configs/opt/adam_w.yml

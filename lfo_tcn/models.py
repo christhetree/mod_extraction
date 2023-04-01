@@ -129,12 +129,25 @@ class Spectral2DCNN(nn.Module):
         self.temp_dilations = temp_dilations
         assert len(out_channels) == len(bin_dilations) == len(temp_dilations)
 
-        self.spectrogram = MelSpectrogram(n_fft=n_fft,
+        self.spectrogram = MelSpectrogram(sample_rate=int(sr),
+                                          n_fft=n_fft,
                                           hop_length=hop_len,
                                           normalized=False,
-                                          sample_rate=int(sr),
-                                          n_mels=n_mels)
+                                          n_mels=n_mels,
+                                          center=True)
         n_bins = n_mels
+
+        # self.scat_1d = kymatio.torch.TimeFrequencyScattering(J=10,
+        #                                                      # J_fr=4,
+        #                                                      J_fr=1,
+        #                                                      T=256,
+        #                                                      F=1,
+        #                                                      Q=(8, 1),
+        #                                                      # Q=(1, 1),
+        #                                                      Q_fr=1,
+        #                                                      format="joint",
+        #                                                      shape=(n_samples,))
+        # n_bins = 96
 
         n_frames = n_samples // hop_len + 1
         temporal_dims = [n_frames] * len(out_channels)
@@ -159,6 +172,13 @@ class Spectral2DCNN(nn.Module):
         assert x.ndim == 3
         x = self.spectrogram(x)
 
+        # paths = []
+        # for idx in range(x.size(1)):
+        #     ch_x = x[:, idx, :].contiguous()
+        #     ch_x = self.scat_1d(ch_x)
+        #     paths.append(ch_x)
+        # x = tr.cat(paths, dim=1)
+
         if self.training:
             if self.freq_mask_amount > 0:
                 x = self.freq_masking(x)
@@ -168,9 +188,12 @@ class Spectral2DCNN(nn.Module):
         x = tr.clip(x, min=self.eps)
         x = tr.log(x)
 
-        # from matplotlib import pyplot as plt
-        # plt.imshow(x[0, 0, :, :])
-        # plt.show()
+        # for p in x[0, :, :]:
+        #     from matplotlib import pyplot as plt
+        #     # plt.imshow(x[0, 0, :, :])
+        #     plt.imshow(p)
+        #     plt.show()
+        # exit()
 
         x = self.cnn(x)
         x = tr.mean(x, dim=-2)
@@ -272,7 +295,7 @@ class LSTMEffectModel(HiddenStateModel):
     def __init__(self,
                  in_ch: int = 1,
                  out_ch: int = 1,
-                 n_hidden: int = 48,
+                 n_hidden: int = 64,
                  latent_dim: int = 1) -> None:
         super().__init__()
         self.in_ch = in_ch

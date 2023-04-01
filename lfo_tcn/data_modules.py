@@ -11,6 +11,7 @@ from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigD
     RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset, RandomPreprocessedDataset
 from lfo_tcn.fx import MonoFlangerChorusModule
 from lfo_tcn.plotting import plot_spectrogram
+from lfo_tcn.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -400,6 +401,9 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
         fx_params["mix"] = mix
         fx_params["width"] = width
 
+        if mod_sig.size(-1) != dry.size(-1):
+            mod_sig = linear_interpolate_last_dim(mod_sig, dry.size(-1))
+
         wet = self.flanger(dry, mod_sig, feedback, min_delay_width, width, depth, mix)
 
         if self.use_debug_mode:
@@ -421,7 +425,9 @@ class PreprocessedDataModule(pl.LightningDataModule):
                  n_samples: int,
                  sr: float,
                  num_workers: int = 0,
-                 use_debug_mode: bool = False) -> None:
+                 use_debug_mode: bool = False,
+                 train_num_examples_per_epoch: Optional[int] = None,  # TODO(cm): fix offline config to remove this
+                 val_num_examples_per_epoch: Optional[int] = None) -> None:
         super().__init__()
         self.save_hyperparameters()
         log.info(f"\n{self.hparams}")

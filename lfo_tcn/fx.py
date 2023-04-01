@@ -1,12 +1,12 @@
 import logging
 import os
-from typing import Union
+from typing import Union, List
 
 import torch as tr
 from matplotlib import pyplot as plt
 from torch import Tensor as T, nn
 
-from lfo_tcn.util import linear_interpolate_last_dim
+from lfo_tcn.util import linear_interpolate_last_dim, sample_uniform, choice
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -21,11 +21,13 @@ def make_mod_signal(n_samples: int,
                     exp: float = 1.0) -> T:
     assert n_samples > 0
     assert 0.0 < freq < sr / 2.0
+    # assert sr < 1000
     assert -2 * tr.pi <= phase <= 2 * tr.pi
     assert shape in {"cos", "rect_cos", "inv_rect_cos", "tri", "saw", "rsaw", "sqr"}
     if shape in {"rect_cos", "inv_rect_cos"}:
         # Rectified sine waves have double the frequency
         freq /= 2.0
+        phase /= 2.0
     assert exp > 0
     argument = tr.cumsum(2 * tr.pi * tr.full((n_samples,), freq) / sr, dim=0) + phase
     saw = tr.remainder(argument, 2 * tr.pi) / (2 * tr.pi)
@@ -33,9 +35,9 @@ def make_mod_signal(n_samples: int,
     if shape == "cos":
         mod_sig = (tr.cos(argument + tr.pi) + 1.0) / 2.0
     elif shape == "rect_cos":
-        mod_sig = tr.abs(tr.cos(argument + tr.pi))
+        mod_sig = tr.abs(tr.cos(argument + (tr.pi / 2.0)))
     elif shape == "inv_rect_cos":
-        mod_sig = -tr.abs(tr.cos(argument + tr.pi)) + 1.0
+        mod_sig = -tr.abs(tr.cos(argument)) + 1.0
     elif shape == "sqr":
         cos = tr.cos(argument + tr.pi)
         sqr = tr.sign(cos)
@@ -43,7 +45,7 @@ def make_mod_signal(n_samples: int,
     elif shape == "saw":
         mod_sig = saw
     elif shape == "rsaw":
-        mod_sig = 1.0 - saw
+        mod_sig = tr.roll(1.0 - saw, 1)
     elif shape == "tri":
         tri = 2 * saw
         mod_sig = tr.where(tri > 1.0, 2.0 - tri, tri)
@@ -55,6 +57,115 @@ def make_mod_signal(n_samples: int,
     return mod_sig
 
 
+def _time_stretch_section(section: T,
+                          l_min: float,
+                          l_max: float,
+                          r_min: float,
+                          r_max: float,
+                          lr_split: float = 0.5) -> T:
+    size = section.size(0)
+    if sample_uniform(0.0, 1.0) < lr_split:
+        x = int((sample_uniform(l_min, l_max) * size) + 0.5)
+        new_size = max(2, size - x)
+    else:
+        x = int((sample_uniform(r_min, r_max) * size) + 0.5)
+        new_size = size + x
+    new_section = linear_interpolate_last_dim(section, new_size, align_corners=True)
+    return new_section
+
+
+def make_quasi_periodic(mod_sig: T,
+                        l_min: float = 0.2,
+                        l_max: float = 0.2,
+                        r_min: float = 0.2,
+                        r_max: float = 0.2,
+                        lr_split: float = 0.5) -> T:
+    assert mod_sig.ndim == 1
+    top_corners, bottom_corners = find_corners(mod_sig.unsqueeze(0))
+    if top_corners.sum() > bottom_corners.sum():
+        corners = top_corners
+    else:
+        corners = bottom_corners
+    corners = corners.squeeze(0)
+    corner_indices = (corners == 1).nonzero(as_tuple=True)[0]
+    corner_indices = [c.item() for c in corner_indices]
+    if len(corner_indices) < 2:
+        return mod_sig
+
+    prev_idx = 0
+    sections = []
+    sections_len = 0
+    for idx in corner_indices:
+        section = mod_sig[prev_idx:idx + 1]
+        new_section = _time_stretch_section(section, l_min, l_max, r_min, r_max, lr_split)
+        new_section = new_section[:-1]
+        sections_len += new_section.size(0)
+        sections.append(new_section)
+        prev_idx = idx
+
+    orig_size = mod_sig.size(0)
+    section = mod_sig[prev_idx:orig_size]
+    sections_len += section.size(0)
+    if sections_len < orig_size:
+        new_size = section.size(0) + (orig_size - sections_len)
+        section = linear_interpolate_last_dim(section, new_size, align_corners=True)
+    sections.append(section)
+
+    new_mod_sig = tr.cat(sections, dim=0)
+    new_mod_sig = new_mod_sig[:orig_size]
+    return new_mod_sig
+
+
+def make_concave_convex_mod_sig(n_samples: int,
+                                sr: float,
+                                freq: float,
+                                phase: float = 0.0,
+                                concave_min: float = 0.2,
+                                concave_max: float = 1.0,
+                                convex_min: float = 1.0,
+                                convex_max: float = 3.0,
+                                concave_prob: float = 0.5) -> T:
+    mod_sig = make_mod_signal(n_samples, sr, freq, phase, shape="tri")
+    top_corners, bottom_corners = find_corners(mod_sig.unsqueeze(0))
+    corners = top_corners + bottom_corners
+    corners = corners.squeeze(0)
+    corner_indices = (corners == 1).nonzero(as_tuple=True)[0]
+    corner_indices = [c.item() for c in corner_indices] + [mod_sig.size(0)]
+    exp = tr.ones_like(mod_sig)
+    prev_idx = 0
+    for idx in corner_indices:
+        if sample_uniform(0.0, 1.0) < concave_prob:
+            exp_val = sample_uniform(concave_min, concave_max)
+        else:
+            exp_val = sample_uniform(convex_min, convex_max)
+        exp[prev_idx:idx] = exp_val
+        prev_idx = idx
+    mod_sig **= exp
+    return mod_sig
+
+
+def make_combined_mod_sig(n_samples: int,
+                          sr: float,
+                          freq: float,
+                          phase: float,
+                          shapes: List[str]) -> T:
+    curr_shape = choice(shapes)
+    mod_sig = make_mod_signal(n_samples, sr, freq, phase, shape=curr_shape)
+    top_corners, bottom_corners = find_corners(mod_sig.unsqueeze(0))
+    corners = bottom_corners
+    corners = corners.squeeze(0)
+    corner_indices = (corners == 1).nonzero(as_tuple=True)[0]
+    corner_indices = [c.item() for c in corner_indices]
+    if len(corner_indices) > 1:
+        for i, idx in enumerate(corner_indices[1:]):
+            prev_idx = corner_indices[i]
+            section_len = idx - prev_idx + 1
+            curr_shape = choice(shapes)
+            section = make_mod_signal(section_len, section_len, freq=1.0, phase=0.0, shape=curr_shape)
+            mod_sig[prev_idx:idx + 1] = section
+    return mod_sig
+
+
 def mod_sig_to_corners(mod_sig: T, n_frames: int) -> (T, T):
     assert mod_sig.ndim == 2
     mod_sig = linear_interpolate_last_dim(mod_sig, n_frames, align_corners=True)
@@ -62,6 +173,7 @@ def mod_sig_to_corners(mod_sig: T, n_frames: int) -> (T, T):
 
 
 def find_corners(mod_sig: T) -> (T, T):
+    assert mod_sig.ndim == 2
     m_r = mod_sig[:, 1:]
     m_l = mod_sig[:, :-1]
     diff = m_r - m_l
@@ -286,12 +398,18 @@ if __name__ == "__main__":
     # # audio = make_mod_signal(n_samples, sr, 220.0, shape="saw", exp=1.0)
     # audio = audio.view(1, 1, -1).repeat(3, 1, 1)
 
-    n_samples = 12
-    sr = 6
+    n_samples = 345
+    sr = 345
 
-    mod_sig_a = make_mod_signal(n_samples, sr, 1.0, phase=0, shape="saw", exp=0.1)
+    mod_sig_a = make_mod_signal(n_samples, sr, 1.0, phase=tr.pi, shape="inv_rect_cos", exp=1.0)
     mod_sig_b = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="tri", exp=1.0)
     mod_sig_c = make_mod_signal(n_samples, sr, 0.5, phase=tr.pi, shape="saw", exp=1.0)
+
+    quasi = make_quasi_periodic(mod_sig_a, l_min=0.1, l_max=0.3, r_min=0.1, r_max=0.3, lr_split=0.5)
+    plt.plot(mod_sig_a)
+    plt.plot(quasi)
+    plt.show()
+    exit()
 
     mod_sig = tr.stack([mod_sig_a, mod_sig_b, mod_sig_c], dim=0)
     mod_sig *= 0.5

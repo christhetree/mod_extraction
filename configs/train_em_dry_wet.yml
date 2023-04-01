@@ -2,40 +2,41 @@ seed_everything: 44
 
 custom:
   project_name: lfo_tcn
-  model_name: lstm_64_2dcnn_tbp_1024
-  dataset_name: egfx_ph
-#  dataset_name: egfx_ch
+#  model_name: lstm_64__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8
+#  model_name: lstm_64__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8_stretch16
+  model_name: lstm_64_e2e__lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__smooth8
+#  dataset_name: egfx_ph
+  dataset_name: egfx_fl
   cpu_batch_size: 5
-  cpu_train_num_examples_per_epoch: 15
-  cpu_val_num_examples_per_epoch: 10
 
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [1]
-  max_epochs: 100
+  devices: [3]
+  max_epochs: 200
 
 data:
   class_path: lfo_tcn.data_modules.RandomAudioChunkDryWetDataModule
   init_args:
-    batch_size: 128
+    batch_size: 32
     num_workers: 8
     use_debug_mode: false
-    dry_train_dir: ../data/egfx_clean/train
-    dry_val_dir: ../data/egfx_clean/val
-    wet_train_dir: ../data/egfx_phaser/train
-    wet_val_dir: ../data/egfx_phaser/val
-#    wet_train_dir: ../data/egfx_flanger/train
-#    wet_val_dir: ../data/egfx_flanger/val
-#    wet_train_dir: ../data/egfx_chorus/train
-#    wet_val_dir: ../data/egfx_chorus/val
-    train_num_examples_per_epoch: 4000
-    val_num_examples_per_epoch: 1000
-    n_samples: 96000
-    sr: 48000
+    dry_train_dir: ../data/egfx_clean_44100/train
+    dry_val_dir: ../data/egfx_clean_44100/val
+    wet_train_dir: ../data/egfx_phaser_44100/train
+    wet_val_dir: ../data/egfx_phaser_44100/val
+#    wet_train_dir: ../data/egfx_flanger_44100/train
+#    wet_val_dir: ../data/egfx_flanger_44100/val
+#    wet_train_dir: ../data/egfx_chorus_44100/train
+#    wet_val_dir: ../data/egfx_chorus_44100/val
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
+    n_samples: 88200
+    sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
     silence_threshold_energy: 1e-6
+#    silence_threshold_energy: 1e-4
     n_retries: 10
     check_dataset: false
     end_buffer_n_samples: 4000
@@ -52,10 +53,17 @@ model:
         out_ch: 1
         n_hidden: 64
         latent_dim: 1
+#    lfo_model: null
     lfo_model: ../configs/models/spectral_2dcnn.yml
-    lfo_model_weights_path: null
+    lfo_model_weights_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.pt
+#    freeze_lfo_model: true
     freeze_lfo_model: false
-    param_model: null
+    use_dry: true
+    model_smooth_n_frames: 8
+#    should_stretch: true
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 16
     loss_dict:
       l1: 1.0
       esr: 0.0

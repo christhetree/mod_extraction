@@ -25,7 +25,7 @@ class CustomLightningCLI(LightningCLI):
         "callbacks": [
             LearningRateMonitor(logging_interval="step"),
             LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
-            # LogAudioCallback(n_examples=4, log_dry_audio=True),
+            LogAudioCallback(n_examples=4, log_dry_audio=True),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
@@ -89,11 +89,16 @@ class CustomLightningCLI(LightningCLI):
                 log.debug(f"Unable to link src: {src} and dest: {dest}; dest not found")
                 return
             curr_dest = curr_dest[dest_token]
+            if curr_dest is None:
+                break
 
+        if curr_dest is None:
+            log.info(f"Dest {dest} is not reachable")
+            return
         if dest_key in curr_dest and curr_dest[dest_key] != src_val:
             log.info(f"Dest {dest} already exists: {curr_dest[dest_key]}, overriding it with {src_val}")
-        curr_dest[dest_key] = src_val
-        return
+        else:
+            curr_dest[dest_key] = src_val
 
     def update_config(self, config: Dict[str, Any]) -> None:
         for link_args in self.cli_config["link_arguments_if_possible"]:

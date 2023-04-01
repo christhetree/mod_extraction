@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from lfo_tcn import fx
-from lfo_tcn.fx import make_mod_signal
+from lfo_tcn.fx import make_mod_signal, make_quasi_periodic, make_concave_convex_mod_sig, make_combined_mod_sig
 from lfo_tcn.plotting import plot_spectrogram
 from lfo_tcn.util import linear_interpolate_last_dim
 
@@ -376,6 +376,32 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         shape = self.choice(self.fx_config["mod_sig"]["shapes"])
         exp = self.fx_config["mod_sig"]["exp"]
         mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape, exp)
+
+        # mod_sig = make_mod_signal(self.n_samples // 100, self.sr / 100, rate_hz, phase, shape, exp)
+        #
+        # mod_sig = concave_convex_mod_sig(self.n_samples,
+        #                                  self.sr,
+        #                                  rate_hz,
+        #                                  phase,
+        #                                  concave_max=0.6,
+        #                                  convex_min=1.5)
+        # mod_sig = make_combined_mod_sig(self.n_samples // 100,
+        #                                 self.sr / 100,
+        #                                 rate_hz,
+        #                                 phase,
+        #                                 # shapes=["cos", "tri"],
+        #                                 shapes=["cos", "tri", "rect_cos"],
+        #                                 # shapes=["cos", "tri", "rect_cos", "inv_rect_cos", "saw", "rsaw"],
+        #                                 )
+
+        if "quasiperiodic" in self.fx_config["mod_sig"] and self.fx_config["mod_sig"]["quasiperiodic"]:
+            l_min = self.fx_config["mod_sig"]["l_min"]
+            l_max = self.fx_config["mod_sig"]["l_max"]
+            r_min = self.fx_config["mod_sig"]["r_min"]
+            r_max = self.fx_config["mod_sig"]["r_max"]
+            lr_split = self.fx_config["mod_sig"]["lr_split"]
+            mod_sig = make_quasi_periodic(mod_sig, l_min, l_max, r_min, r_max, lr_split)
+
         fx_params = {
             "rate_hz": rate_hz,
             "phase": phase,

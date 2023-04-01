@@ -302,6 +302,10 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                  param_model: Optional[nn.Module] = None,
                  sr: float = 44100,
                  use_dry: bool = False,
+                 model_smooth_n_frames: int = 8,
+                 should_stretch: bool = False,
+                 max_n_corners: int = 16,
+                 stretch_smooth_n_frames: int = 8,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         assert warmup_n_samples > 0
         super().__init__(effect_model,
@@ -314,7 +318,40 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         self.step_n_samples = step_n_samples
         self.param_model = param_model
         self.use_dry = use_dry
+        self.model_smooth_n_frames = model_smooth_n_frames
+        self.should_stretch = should_stretch
+        self.max_n_corners = max_n_corners
+        self.stretch_smooth_n_frames = stretch_smooth_n_frames
         self.automatic_optimization = False
+
+    # TODO(cm): refactor
+    def center_crop_mod_sig(self, mod_sig: T, size: int) -> T:
+        if size == mod_sig.size(-1):
+            return mod_sig
+        assert size < mod_sig.size(-1)
+        padding = mod_sig.size(-1) - size
+        pad_l = padding // 2
+        pad_r = padding - pad_l
+        mod_sig = mod_sig[..., pad_l:-pad_r]
+        return mod_sig
+
+    def smooth_stretch_crop_mod_sig(self, mod_sig_hat: T, mod_sig: Optional[T] = None) -> (T, Optional[T], int):
+        orig_n_frames = mod_sig_hat.size(-1)
+        if self.model_smooth_n_frames > 1:
+            mod_sig_hat = mod_sig_hat.unfold(dimension=-1, size=self.model_smooth_n_frames, step=1)
+            mod_sig_hat = tr.mean(mod_sig_hat, dim=-1, keepdim=False)
+            if mod_sig is not None:
+                mod_sig = self.center_crop_mod_sig(mod_sig, mod_sig_hat.size(-1))
+
+        if self.should_stretch:
+            mod_sig_hat = stretch_corners(mod_sig_hat,
+                                          max_n_corners=self.max_n_corners,
+                                          smooth_n_frames=self.stretch_smooth_n_frames)
+            if self.stretch_smooth_n_frames > 1 and mod_sig is not None:
+                mod_sig = self.center_crop_mod_sig(mod_sig, mod_sig_hat.size(-1))
+        new_n_frames = mod_sig_hat.size(-1)
+        removed_n_frames = orig_n_frames - new_n_frames
+        return mod_sig_hat, mod_sig, removed_n_frames
 
     def common_step(self,
                     batch: (T, T, Optional[T], Optional[Dict[str, T]]),
@@ -333,12 +370,14 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
             lfo_model_input = tr.cat([dry, wet], dim=1)
 
         mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig)
+        mod_sig_hat, mod_sig, removed_n_frames = self.smooth_stretch_crop_mod_sig(mod_sig_hat, mod_sig)
+        n_frames = mod_sig_hat.size(-1)
+        n_samples = int((n_frames / (n_frames + removed_n_frames)) * dry.size(-1))
+        dry = self.center_crop_mod_sig(dry, n_samples)
+        wet = self.center_crop_mod_sig(wet, n_samples)
+
         mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
         mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
-
-        # fb_param = fx_params["feedback"].float().view(-1, 1, 1)
-        # fb_param = fb_param.repeat(1, 1, mod_sig_hat_sr.size(-1))
-        # mod_sig_hat_sr = tr.cat([mod_sig_hat_sr, fb_param], dim=1)
 
         self.effect_model.clear_hidden()
         warmup_latent_sr = mod_sig_hat_sr[:, :, :self.warmup_n_samples]
@@ -361,8 +400,9 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
             if end_idx > dry.size(-1):
                 break
 
-            if is_training:
+            if is_training and not self.freeze_lfo_model:
                 mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig)
+                mod_sig_hat, mod_sig, _ = self.smooth_stretch_crop_mod_sig(mod_sig_hat, mod_sig)
                 mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
                 mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
 
@@ -407,6 +447,8 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         if fx_params is not None:
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
+        # from matplotlib import pyplot as plt
+        # from lfo_tcn.plotting import plot_spectrogram
         # for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
         #                                            data_dict["wet"],
         #                                            data_dict["wet_hat"],
@@ -417,8 +459,9 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         #     plt.plot(m_h)
         #     plt.title(f"mod_sig_{idx}")
         #     plt.show()
-        #     plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
+        #     # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
         #     plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
         #     plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"wet_hat_{idx}", sr=self.sr)
+        # exit()
 
         return batch_loss, data_dict, fx_params
