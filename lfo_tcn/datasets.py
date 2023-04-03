@@ -299,23 +299,36 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
         self.wet_dir = wet_dir
         self.end_buffer_n_samples = end_buffer_n_samples
         all_wet_paths = self.get_file_paths(wet_dir, ext)
-        dry_paths = self.input_paths
         all_wet_names_to_wet_path = {os.path.basename(p): p for p in all_wet_paths}
+        # dry_paths = self.input_paths
+        dry_paths = []
         wet_paths = []
         name_to_wet_path = {}
-        for dry_p in dry_paths:
+        for dry_p in self.input_paths:
             name = os.path.basename(dry_p)
             assert name in all_wet_names_to_wet_path, f"Missing wet file: {name}"
             wet_p = all_wet_names_to_wet_path[name]
             dry_info = torchaudio.info(dry_p)
             wet_info = torchaudio.info(wet_p)
-            assert dry_info.sample_rate == wet_info.sample_rate, f"Different sample rates: {dry_p}, {wet_p}"
-            assert abs(dry_info.num_frames - wet_info.num_frames) <= end_buffer_n_samples, \
-                f"Different lengths: {dry_p}: {dry_info.num_frames}, {wet_p}: {wet_info.num_frames}"
-            assert dry_info.num_channels == wet_info.num_channels, f"Different channels: {dry_p}, {wet_p}"
+            if dry_info.sample_rate != wet_info.sample_rate:
+                continue
+            if abs(dry_info.num_frames - wet_info.num_frames) > end_buffer_n_samples:
+                continue
+            if dry_info.num_channels != wet_info.num_channels:
+                continue
+            dry_paths.append(dry_p)
+            # assert dry_info.sample_rate == wet_info.sample_rate, f"Different sample rates: {dry_p}, {wet_p}"
+            # assert abs(dry_info.num_frames - wet_info.num_frames) <= end_buffer_n_samples, \
+            #     f"Different lengths: {dry_p}: {dry_info.num_frames}, {wet_p}: {wet_info.num_frames}"
+            # assert dry_info.num_channels == wet_info.num_channels, f"Different channels: {dry_p}, {wet_p}"
             wet_paths.append(wet_p)
             name_to_wet_path[name] = wet_p
+        dry_paths = sorted(dry_paths)
         wet_paths = sorted(wet_paths)
+        assert len(dry_paths) == len(wet_paths)
+        log.info(f"Found {len(dry_paths)} dry/wet pairs")
+        assert len(dry_paths) > 0
+        self.input_paths = dry_paths
         self.dry_paths = dry_paths
         self.wet_paths = wet_paths
         self.name_to_wet_path = name_to_wet_path
@@ -390,7 +403,7 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         #                                 rate_hz,
         #                                 phase,
         #                                 # shapes=["cos", "tri"],
-        #                                 shapes=["cos", "tri", "rect_cos"],
+        #                                 shapes=self.fx_config["mod_sig"]["shapes"],
         #                                 # shapes=["cos", "tri", "rect_cos", "inv_rect_cos", "saw", "rsaw"],
         #                                 )
 

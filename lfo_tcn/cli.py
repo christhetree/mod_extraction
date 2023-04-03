@@ -25,7 +25,7 @@ class CustomLightningCLI(LightningCLI):
         "callbacks": [
             LearningRateMonitor(logging_interval="step"),
             LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
-            LogAudioCallback(n_examples=4, log_dry_audio=True),
+            # LogAudioCallback(n_examples=4, log_dry_audio=True),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
@@ -172,5 +172,5 @@ class CustomLightningCLI(LightningCLI):
                  f"{self.config.fit.custom.dataset_name} ================")
         log.info(f"================ Starting LR = {self.config.fit.optimizer.init_args.lr:.5f} ================ ")
 
-    def before_validate(self) -> None:
-        tr.manual_seed(42)  # TODO(cm)
+    # def before_validate(self) -> None:
+    #     tr.manual_seed(42)  # TODO(cm)

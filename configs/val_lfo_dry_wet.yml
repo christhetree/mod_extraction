@@ -1,0 +1,61 @@
+seed_everything: 42
+#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
+ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
+
+custom:
+  project_name: lfo_tcn
+  model_name: val_model
+  dataset_name: val_dataset
+  cpu_batch_size: 8
+#  cpu_batch_size: 100
+  cpu_val_num_examples_per_epoch: 100
+
+trainer:
+  accelerator: gpu
+  devices: [1]
+
+data:
+  class_path: lfo_tcn.data_modules.RandomAudioChunkDryWetDataModule
+  init_args:
+    batch_size: 32
+    num_workers: 8
+    use_debug_mode: false
+#    dry_train_dir: ../data/ableton/dry
+#    dry_val_dir: ../data/ableton/dry
+    dry_train_dir: ../data/egfx_clean_44100/train
+    dry_val_dir: ../data/egfx_clean_44100/val
+#    wet_train_dir: ../data/ableton/wet
+#    wet_val_dir: ../data/ableton/wet
+#    wet_train_dir: ../data/egfx_phaser_44100/train
+#    wet_val_dir: ../data/egfx_phaser_44100/val
+#    wet_train_dir: ../data/egfx_flanger_44100/train
+#    wet_val_dir: ../data/egfx_flanger_44100/val
+    wet_train_dir: ../data/egfx_chorus_44100/train
+    wet_val_dir: ../data/egfx_chorus_44100/val
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
+    n_samples: 88200
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
+#    silence_threshold_energy: 1e-6
+    silence_threshold_energy: 1e-4
+    n_retries: 10
+    check_dataset: false
+    end_buffer_n_samples: 0
+#    end_buffer_n_samples: 4000
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model: ../configs/models/spectral_2dcnn.yml
+    use_dry: true
+    model_smooth_n_frames: 8
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 16
+    loss_dict:
+      l1: 1.0
+      fdl1: 5.0
+      sdl1: 10.0
+      mse: 0.0

@@ -1,9 +1,10 @@
-seed_everything: 42
+seed_everything: 43
 
 custom:
   project_name: lfo_tcn
-  model_name: jtfst_kymatio_Jf4Qf1
-  dataset_name: ph_fl_ch_all__idmt_4_egfx_clean_44100
+#  model_name: lfo_2dcnn_io_no_sa
+  model_name: lfo_2dcnn_io_sa_25_25
+  dataset_name: ph_fl_ch_all_2__idmt_4_egfx_clean_44100
   cpu_batch_size: 8
   cpu_train_num_examples_per_epoch: 16
   cpu_val_num_examples_per_epoch: 8
@@ -11,11 +12,11 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [2]
-  max_epochs: 400
+  devices: [6]
+  max_epochs: 800
   num_sanity_val_steps: 2
 
-data: ../configs/data/interwoven_all.yml
+data: ../configs/data/interwoven_all_2.yml
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction

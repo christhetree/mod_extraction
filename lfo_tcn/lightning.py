@@ -106,9 +106,10 @@ class LFOExtraction(BaseLightingModule):
 
         if self.use_dry:
             assert dry is not None
-            mod_sig_hat = self.model(tr.cat([dry, wet], dim=1)).squeeze(1)
+            mod_sig_hat, latent = self.model(tr.cat([dry, wet], dim=1))
         else:
-            mod_sig_hat = self.model(wet).squeeze(1)
+            mod_sig_hat, latent = self.model(wet)
+        mod_sig_hat = mod_sig_hat.squeeze(1)
 
         if mod_sig is None:
             mod_sig = tr.zeros_like(mod_sig_hat)
@@ -134,6 +135,7 @@ class LFOExtraction(BaseLightingModule):
             "wet": wet.detach().float().cpu(),
             "mod_sig": mod_sig.detach().float().cpu(),
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
+            "latent": latent.detach().float().cpu(),
         }
         if dry is not None:
             data_dict["dry"] = dry.detach().float().cpu()
@@ -155,8 +157,44 @@ class LFOExtraction(BaseLightingModule):
                 plt.title(f"mod_sig_{idx}")
                 plt.show()
                 # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
-                # plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+                plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
             exit()
+
+        # latent = tr.mean(latent, dim=-1)
+        # tr.save(latent, "../out/latent_fl.pt")
+        # tr.save(latent, "../out/latent_ch.pt")
+        # tr.save(latent, "../out/latent_ph.pt")
+        # exit()
+
+        # reducer = umap.UMAP()
+        # latent = latent.numpy()
+        # latent_2d = reducer.fit_transform(latent)
+        # latent_2d, _, _ = tr.pca_lowrank(latent, 2)
+
+        # rate_hz = tr.log(rate_hz)
+        # shape_to_color = {
+        #     "cos": "pink",
+        #     "tri": "cyan",
+        #     "saw": "yellow",
+        #     "rsaw": "red",
+        #     "rect_cos": "blue",
+        #     "inv_rect_cos": "orange",
+        # }
+        # shape = fx_params["shape"]
+        # shape = [shape_to_color[s] for s in shape]
+        # phase = fx_params["phase"]
+        # rate_hz = fx_params["rate_hz"]
+
+        # cond = shape
+        # cond = phase.numpy()
+        # cond = rate_hz.numpy()
+
+        # from matplotlib import pyplot as plt
+        # plt.scatter(latent_2d[:, 0], latent_2d[:, 1], c=cond, zorder=3)
+        # plt.grid(c="lightgray", zorder=0)
+        # plt.axis("equal")
+        # plt.show()
+        # exit()
 
         return loss, data_dict, fx_params
 

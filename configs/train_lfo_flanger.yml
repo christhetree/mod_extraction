@@ -1,19 +1,23 @@
 #seed_everything: 44
 #seed_everything: 45
 #seed_everything: 46
-seed_everything: 47
+#seed_everything: 47
+#seed_everything: 48
+seed_everything: 49
 
 custom:
   project_name: lfo_tcn
   model_name: lfo_tcn
-  dataset_name: gen_fl_all
+#  dataset_name: gen_fl_all
+  dataset_name: gen_ch_all
+#  cpu_batch_size: 8
   cpu_batch_size: 100
 #  cpu_batch_size: 1000
   cpu_train_num_examples_per_epoch: 200
-#  cpu_train_num_examples_per_epoch: 8000
+#  cpu_train_num_examples_per_epoch: 40000
   cpu_val_num_examples_per_epoch: 100
-#  cpu_val_num_examples_per_epoch: 2000
-#  use_wandb: false
+#  cpu_val_num_examples_per_epoch: 10000
+  use_wandb: false
 
 trainer:
   accelerator: cpu
@@ -28,24 +32,27 @@ data:
     batch_size: 1000
     num_workers: 8
     use_debug_mode: false
-    train_dir: ../data/egfx_clean_44100/train
-    val_dir: ../data/egfx_clean_44100/val
-#    train_dir: ../data/idmt_4/train
-#    val_dir: ../data/idmt_4/val
-    train_num_examples_per_epoch: 8000
-    val_num_examples_per_epoch: 2000
+#    train_dir: ../data/egfx_clean_44100/train
+#    val_dir: ../data/egfx_clean_44100/val
+    train_dir: ../data/idmt_4/train
+    val_dir: ../data/idmt_4/val
+    train_num_examples_per_epoch: 40000
+#    train_num_examples_per_epoch: 200
+    val_num_examples_per_epoch: 10000
+#    val_num_examples_per_epoch: 100
     n_samples: 88200
     sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-    silence_threshold_energy: 1e-6
-#    silence_threshold_energy: 1e-4
+#    silence_threshold_energy: 1e-6
+    silence_threshold_energy: 1e-4
     n_retries: 10
-    check_dataset: true
+#    check_dataset: true
+    check_dataset: false
     fx_config:
       mod_sig:
         rate_hz:
-          min: 0.1
+          min: 0.5
           max: 3.0
 #          min: 0.35
 #          max: 5.0
@@ -61,11 +68,17 @@ data:
           - rsaw
 #          - sqr
         exp: 1.0
+        quasiperiodic: false
+        l_min: 0.10
+        l_max: 0.40
+        r_min: 0.10
+        r_max: 0.40
+        lr_split: 0.5
       flanger:
 #        max_min_delay_ms: 1.0
         max_min_delay_ms: 30.0
-        max_lfo_delay_ms: 10.0
 #        max_lfo_delay_ms: 10.0
+        max_lfo_delay_ms: 10.0
         feedback:
           min: 0.0
 #          max: 0.0
@@ -91,8 +104,8 @@ data:
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
-    model: ../configs/models/spectral_tcn.yml
-#    model: ../configs/models/spectral_2dcnn.yml
+#    model: ../configs/models/spectral_tcn.yml
+    model: ../configs/models/spectral_2dcnn.yml
 #    sub_batch_size: 32
     loss_dict:
       fdl1: 1.0

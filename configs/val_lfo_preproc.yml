@@ -1,13 +1,13 @@
 seed_everything: 42
-ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
-#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
+#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
+ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
 
 custom:
   project_name: lfo_tcn
   model_name: val_model
   dataset_name: val_dataset
-  cpu_batch_size: 8
-#  cpu_batch_size: 100
+#  cpu_batch_size: 8
+  cpu_batch_size: 100
   cpu_val_num_examples_per_epoch: 100
 
 trainer:
@@ -22,10 +22,10 @@ data:
     sr: 44100
     num_workers: 8
     use_debug_mode: false
-    train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
-    val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
-#    train_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
-#    val_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/val
+#    train_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/train
+#    val_dir: ../data/idmt_4_ibanez_fast__4shapes_fl_fixed_params/val
+    train_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/train
+    val_dir: ../data/idmt_4_ibanez_fast__4shapes_ch_fixed_params/val
 
 
 model:

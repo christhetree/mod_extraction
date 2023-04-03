@@ -17,6 +17,8 @@ init_args:
 #  pool_size: [3, 1]
   pool_size: [2, 1]
   latent_dim: 1
-  freq_mask_amount: 0.0
-  time_mask_amount: 0.0
+#  freq_mask_amount: 0.0
+  freq_mask_amount: 0.25
+#  time_mask_amount: 0.0
+  time_mask_amount: 0.25
   use_ln: true

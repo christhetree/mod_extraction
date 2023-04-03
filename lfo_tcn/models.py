@@ -168,7 +168,7 @@ class Spectral2DCNN(nn.Module):
 
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
-    def forward(self, x: T) -> T:
+    def forward(self, x: T) -> (T, T):
         assert x.ndim == 3
         x = self.spectrogram(x)
 
@@ -197,10 +197,11 @@ class Spectral2DCNN(nn.Module):
 
         x = self.cnn(x)
         x = tr.mean(x, dim=-2)
+        latent = x
 
         x = self.output(x)
         x = tr.sigmoid(x)
-        return x
+        return x, latent
 
 
 class SpectralDSTCN(nn.Module):
