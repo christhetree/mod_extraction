@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Union, List
+from typing import Union, List, Optional
 
 import torch as tr
 from matplotlib import pyplot as plt
@@ -388,6 +388,56 @@ def stretch_corners(mod_sig: T, max_n_corners: int = 10, smooth_n_frames: int = 
         stretched_all.append(stretched)
     stretched = tr.stack(stretched_all, dim=0)
     return stretched
+
+
+def check_mod_sig(mod_sig: T,
+                  top_corners: T,
+                  bottom_corners: T,
+                  min_top_corners: int = 1,
+                  max_top_corners: int = 6,
+                  min_bottom_corners: int = 1,
+                  max_bottom_corners: int = 6,
+                  min_fraction_between_corners: float = 0.10) -> bool:
+    assert mod_sig.ndim == 1
+    assert mod_sig.shape == top_corners.shape == bottom_corners.shape
+    n_top_corners = top_corners.sum()
+    n_bottom_corners = bottom_corners.sum()
+    if n_top_corners < min_top_corners:
+        return False
+    if n_bottom_corners < min_bottom_corners:
+        return False
+    if n_top_corners > max_top_corners:
+        return False
+    if n_bottom_corners > max_bottom_corners:
+        return False
+    # plt.plot(mod_sig)
+    # plt.show()
+    n_frames = mod_sig.size(0)
+    min_n_frames = int(min_fraction_between_corners * n_frames)
+    top_indices = (top_corners == 1).nonzero(as_tuple=True)[0]
+    bottom_indices = (bottom_corners == 1).nonzero(as_tuple=True)[0]
+    if len(top_indices) > 1:
+        distances = [top_indices[idx + 1] - loc for idx, loc in enumerate(top_indices[:-1])]
+        if min(distances) < min_n_frames:
+            return False
+    if len(bottom_indices) > 1:
+        distances = [bottom_indices[idx + 1] - loc for idx, loc in enumerate(bottom_indices[:-1])]
+        if min(distances) < min_n_frames:
+            return False
+    return True
+
+
+def find_valid_mod_sig_indices(mod_sig: T) -> List[int]:
+    assert mod_sig.ndim == 2
+    top_corners, bottom_corners = find_corners(mod_sig)
+    valid_indices = []
+    for idx in range(mod_sig.size(0)):
+        m = mod_sig[idx]
+        t = top_corners[idx]
+        b = bottom_corners[idx]
+        if check_mod_sig(m, t, b):
+            valid_indices.append(idx)
+    return valid_indices
 
 
 if __name__ == "__main__":

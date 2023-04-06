@@ -9,8 +9,8 @@ custom:
 trainer:
   accelerator: gpu
   benchmark: false
-  devices: [1]
-  max_epochs: 200
+  devices: [7]
+  max_epochs: 400
   num_sanity_val_steps: 2
 
 data:
@@ -21,8 +21,8 @@ data:
     use_debug_mode: false
     train_dir: ../data/idmt_4_ibanez_fast/train
     val_dir: ../data/idmt_4_ibanez_fast/val
-    train_num_examples_per_epoch: 1600
-    val_num_examples_per_epoch: 400
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
     n_samples: 88200
     sr: 44100
     ext: wav

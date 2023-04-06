@@ -174,3 +174,8 @@ class CustomLightningCLI(LightningCLI):
 
     # def before_validate(self) -> None:
     #     tr.manual_seed(42)  # TODO(cm)
+
+    # def after_validate(self) -> None:
+    #     print("=================================================================")
+    #     print("eval ch idmt_4 all varying")
+    #     print("=================================================================")

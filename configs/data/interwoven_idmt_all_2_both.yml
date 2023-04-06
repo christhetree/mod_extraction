@@ -1,6 +1,5 @@
 class_path: lfo_tcn.data_modules.InterwovenDataModule
 init_args:
-#  batch_size: 50
   batch_size: 100
   num_workers: 8
   shared_args:
@@ -17,9 +16,9 @@ init_args:
     - dataset_name: random_preproc
       input_dir: ../data/idmt_4_ch_all_2/train
     - dataset_name: random_preproc
-      input_dir: ../data/egfx_clean_44100_fl_all_2/train
+      input_dir: ../data/idmt_4_fl_all_2_quasi/train
     - dataset_name: random_preproc
-      input_dir: ../data/egfx_clean_44100_ch_all_2/train
+      input_dir: ../data/idmt_4_ch_all_2_quasi/train
     - dataset_name: pedalboard_phaser
       input_dir: ../data/idmt_4/train
       ext: wav
@@ -45,10 +44,10 @@ init_args:
             min: 0.2
             max: 1.0
     - dataset_name: pedalboard_phaser
-      input_dir: ../data/egfx_clean_44100/train
+      input_dir: ../data/idmt_4/train
       ext: wav
       silence_fraction_allowed: 0.1
-      silence_threshold_energy: 1e-6
+      silence_threshold_energy: 1e-4
       n_retries: 10
       check_dataset: false
       fx_config:
@@ -74,9 +73,9 @@ init_args:
     - dataset_name: random_preproc
       input_dir: ../data/idmt_4_ch_all_2/val
     - dataset_name: random_preproc
-      input_dir: ../data/egfx_clean_44100_fl_all_2/val
+      input_dir: ../data/idmt_4_fl_all_2_quasi/val
     - dataset_name: random_preproc
-      input_dir: ../data/egfx_clean_44100_ch_all_2/val
+      input_dir: ../data/idmt_4_ch_all_2_quasi/val
     - dataset_name: pedalboard_phaser
       input_dir: ../data/idmt_4/val
       ext: wav
@@ -102,10 +101,10 @@ init_args:
             min: 0.2
             max: 1.0
     - dataset_name: pedalboard_phaser
-      input_dir: ../data/egfx_clean_44100/val
+      input_dir: ../data/idmt_4/val
       ext: wav
       silence_fraction_allowed: 0.1
-      silence_threshold_energy: 1e-6
+      silence_threshold_energy: 1e-4
       n_retries: 10
       check_dataset: false
       fx_config:

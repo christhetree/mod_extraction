@@ -158,7 +158,8 @@ class Spectral2DCNN(nn.Module):
         layers = []
         for out_ch, b_dil, t_dil, temp_dim in zip(out_channels, bin_dilations, temp_dilations, temporal_dims):
             if use_ln:
-                layers.append(nn.LayerNorm([in_ch, n_bins, temp_dim], elementwise_affine=False))
+                # layers.append(nn.LayerNorm([in_ch, n_bins, temp_dim], elementwise_affine=False))
+                layers.append(nn.LayerNorm([n_bins, temp_dim], elementwise_affine=False))
             layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=(1, 1), dilation=(b_dil, t_dil), padding="same"))
             layers.append(nn.MaxPool2d(kernel_size=pool_size))
             layers.append(nn.PReLU(num_parameters=out_ch))

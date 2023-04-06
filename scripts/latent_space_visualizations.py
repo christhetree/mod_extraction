@@ -11,20 +11,23 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 if __name__ == "__main__":
-    fl_latent = tr.load("../out/latent_fl.pt")
+    fl_latent = tr.load("../out/fl_1hz__latent.pt")
+    # fl_latent = tr.load("../out/fl_rate__latent.pt")
     fl_labels = ["blue"] * fl_latent.size(0)
-    ch_latent = tr.load("../out/latent_ch.pt")
+    ch_latent = tr.load("../out/ch_1hz__latent.pt")
+    # ch_latent = tr.load("../out/ch_rate__latent.pt")
     ch_labels = ["red"] * ch_latent.size(0)
-    ph_latent = tr.load("../out/latent_ph.pt")
+    ph_latent = tr.load("../out/ph_1hz__latent.pt")
+    # ph_latent = tr.load("../out/ph_rate__latent.pt")
     ph_labels = ["cyan"] * ph_latent.size(0)
 
     labels = fl_labels + ch_labels + ph_labels
     latent = tr.cat([fl_latent, ch_latent, ph_latent], dim=0)
 
-    reducer = umap.UMAP()
-    latent = latent.numpy()
-    latent_2d = reducer.fit_transform(latent)
-    # latent_2d, _, _ = tr.pca_lowrank(latent, 2)
+    # reducer = umap.UMAP()
+    # latent = latent.numpy()
+    # latent_2d = reducer.fit_transform(latent)
+    latent_2d, _, _ = tr.pca_lowrank(latent, 2)
     colors = labels
 
     plt.scatter(latent_2d[:, 0], latent_2d[:, 1], c=colors, zorder=3)

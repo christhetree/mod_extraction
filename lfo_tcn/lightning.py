@@ -9,7 +9,7 @@ from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
-from lfo_tcn.fx import stretch_corners
+from lfo_tcn.fx import stretch_corners, find_valid_mod_sig_indices
 from lfo_tcn.losses import get_loss_func_by_name
 from lfo_tcn.models import HiddenStateModel
 from lfo_tcn.util import linear_interpolate_last_dim
@@ -129,6 +129,18 @@ class LFOExtraction(BaseLightingModule):
             if self.stretch_smooth_n_frames > 1:
                 mod_sig = self.center_crop_mod_sig(mod_sig, mod_sig_hat.size(-1))
         assert mod_sig.shape == mod_sig_hat.shape
+
+        # valid_indices = find_valid_mod_sig_indices(mod_sig_hat)
+        # if not valid_indices:
+        #     log.info("No valid LFO signals found")
+        #     return None, None, None
+        # log.info(f"Found {len(valid_indices)} valid LFO signals")
+        # dry = dry[valid_indices, ...]
+        # wet = wet[valid_indices, ...]
+        # mod_sig_hat = mod_sig_hat[valid_indices, ...]
+        # if mod_sig is not None:
+        #     mod_sig = mod_sig[valid_indices, ...]
+
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
 
         data_dict = {
@@ -159,42 +171,6 @@ class LFOExtraction(BaseLightingModule):
                 # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
                 plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
             exit()
-
-        # latent = tr.mean(latent, dim=-1)
-        # tr.save(latent, "../out/latent_fl.pt")
-        # tr.save(latent, "../out/latent_ch.pt")
-        # tr.save(latent, "../out/latent_ph.pt")
-        # exit()
-
-        # reducer = umap.UMAP()
-        # latent = latent.numpy()
-        # latent_2d = reducer.fit_transform(latent)
-        # latent_2d, _, _ = tr.pca_lowrank(latent, 2)
-
-        # rate_hz = tr.log(rate_hz)
-        # shape_to_color = {
-        #     "cos": "pink",
-        #     "tri": "cyan",
-        #     "saw": "yellow",
-        #     "rsaw": "red",
-        #     "rect_cos": "blue",
-        #     "inv_rect_cos": "orange",
-        # }
-        # shape = fx_params["shape"]
-        # shape = [shape_to_color[s] for s in shape]
-        # phase = fx_params["phase"]
-        # rate_hz = fx_params["rate_hz"]
-
-        # cond = shape
-        # cond = phase.numpy()
-        # cond = rate_hz.numpy()
-
-        # from matplotlib import pyplot as plt
-        # plt.scatter(latent_2d[:, 0], latent_2d[:, 1], c=cond, zorder=3)
-        # plt.grid(c="lightgray", zorder=0)
-        # plt.axis("equal")
-        # plt.show()
-        # exit()
 
         return loss, data_dict, fx_params
 
@@ -281,7 +257,8 @@ class LFOEffectModeling(BaseLightingModule):
                 assert mod_sig.ndim == 2
                 mod_sig_hat = mod_sig
             else:
-                mod_sig_hat = self.lfo_model(wet).squeeze(1)
+                mod_sig_hat, latent = self.lfo_model(wet)
+                mod_sig_hat = mod_sig_hat.squeeze(1)
 
             if mod_sig is not None and mod_sig.size(-1) != mod_sig_hat.size(-1):
                 mod_sig = linear_interpolate_last_dim(mod_sig, mod_sig_hat.size(-1), align_corners=True)
@@ -320,7 +297,10 @@ class LFOEffectModeling(BaseLightingModule):
         return loss, data_dict, fx_params
 
     def training_step(self, batch: (T, T, T, Dict[str, T]), batch_idx: int) -> T:
-        loss, _, _ = self.common_step(batch, is_training=True)
+        result = self.common_step(batch, is_training=True)
+        if result is None:
+            return None
+        loss = result[0]
         return loss
 
     def validation_step(self,
@@ -344,6 +324,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                  should_stretch: bool = False,
                  max_n_corners: int = 16,
                  stretch_smooth_n_frames: int = 8,
+                 discard_invalid_lfos: bool = False,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         assert warmup_n_samples > 0
         super().__init__(effect_model,
@@ -360,6 +341,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         self.should_stretch = should_stretch
         self.max_n_corners = max_n_corners
         self.stretch_smooth_n_frames = stretch_smooth_n_frames
+        self.discard_invalid_lfos = discard_invalid_lfos
         self.automatic_optimization = False
 
     # TODO(cm): refactor
@@ -403,6 +385,9 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         assert dry.size(-1) == wet.size(-1)
         assert dry.size(-1) >= self.warmup_n_samples + self.step_n_samples
 
+        # dry = tr.clip(4 * dry, -1.0, 1.0)
+        # wet = tr.clip(4 * wet, -1.0, 1.0)
+
         lfo_model_input = wet
         if self.use_dry:
             lfo_model_input = tr.cat([dry, wet], dim=1)
@@ -413,6 +398,18 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         n_samples = int((n_frames / (n_frames + removed_n_frames)) * dry.size(-1))
         dry = self.center_crop_mod_sig(dry, n_samples)
         wet = self.center_crop_mod_sig(wet, n_samples)
+
+        if self.discard_invalid_lfos:
+            valid_indices = find_valid_mod_sig_indices(mod_sig_hat)
+            if not valid_indices:
+                log.info("No valid LFO signals found")
+                return None
+            log.info(f"Found {len(valid_indices)} valid LFO signals")
+            dry = dry[valid_indices, ...]
+            wet = wet[valid_indices, ...]
+            mod_sig_hat = mod_sig_hat[valid_indices, ...]
+            if mod_sig is not None:
+                mod_sig = mod_sig[valid_indices, ...]
 
         mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
         mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)

@@ -402,9 +402,7 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         #                                 self.sr / 100,
         #                                 rate_hz,
         #                                 phase,
-        #                                 # shapes=["cos", "tri"],
         #                                 shapes=self.fx_config["mod_sig"]["shapes"],
-        #                                 # shapes=["cos", "tri", "rect_cos", "inv_rect_cos", "saw", "rsaw"],
         #                                 )
 
         if "quasiperiodic" in self.fx_config["mod_sig"] and self.fx_config["mod_sig"]["quasiperiodic"]:

@@ -13,7 +13,9 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 if __name__ == "__main__":
     model_dir = MODELS_DIR
-    model_name = "lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720"
+    model_name = "lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_23_step_1920"
+    # model_name = "lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840"
+    # model_name = "lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2_both__idmt_4__epoch_196_step_15760"
     pt_module_attr_name = "model"
 
     config_path = os.path.join(model_dir, f"{model_name}.yml")
