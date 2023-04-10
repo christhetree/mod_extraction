@@ -1,16 +1,5 @@
 seed_everything: 43
-#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_no_smoothing_5fd_10sd__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_183_step_14720.ckpt
-#ckpt_path: ../models/lfo_mel_2dcnn_64x6_io_4smooth_5fd_10sd_both_mask_20__ph_fl_ch_all__idmt_4_egfx_clean_44100__epoch_370_step_29680.ckpt
-#ckpt_path: ../models/lfo_2dcnn_io_sa_25_25__ph_fl_ch_all_2__idmt_4__epoch_160_step_12880.ckpt
-
-#ckpt_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_23_step_1920.ckpt
 ckpt_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.ckpt
-#ckpt_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2_both__idmt_4__epoch_196_step_15760.ckpt
-
-#ckpt_path: ../models/final/lfo_2dcnn_io_sa_25_25__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.ckpt
-#ckpt_path: ../models/final/lfo_2dcnn_io_sa_25_25__ph_fl_ch_all_2_both__idmt_4__epoch_196_step_15760.ckpt
-
-#ckpt_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2_both__idmt_4__epoch_196_step_15760.ckpt
 
 custom:
   project_name: lfo_tcn
@@ -31,31 +20,45 @@ data:
     batch_size: 32
     num_workers: 8
     use_debug_mode: false
-#    dry_train_dir: ../data/melda_tri_asymm/dry
-#    dry_val_dir: ../data/melda_tri_asymm/dry
-    dry_train_dir: ../data/ableton/dry
-    dry_val_dir: ../data/ableton/dry
-#    dry_train_dir: ../data/egfx_clean_44100/train
-#    dry_val_dir: ../data/egfx_clean_44100/val
+#    dry_train_dir: ../data/melda_ph_quasi/train/dry
+#    dry_val_dir: ../data/melda_ph_quasi/train/dry
+#    wet_train_dir: ../data/melda_ph_quasi/train/wet
+#    wet_val_dir: ../data/melda_ph_quasi/train/wet
+#    dry_train_dir: ../data/melda_fl_quasi/train/dry
+#    dry_val_dir: ../data/melda_fl_quasi/train/dry
+#    wet_train_dir: ../data/melda_fl_quasi/train/wet
+#    wet_val_dir: ../data/melda_fl_quasi/train/wet
+#    dry_train_dir: ../data/melda_fl_irregular/train/dry
+#    dry_val_dir: ../data/melda_fl_irregular/train/dry
+#    wet_train_dir: ../data/melda_fl_irregular/train/wet
+#    wet_val_dir: ../data/melda_fl_irregular/train/wet
+#    dry_train_dir: ../data/melda_ph_irregular/train/dry
+#    dry_val_dir: ../data/melda_ph_irregular/train/dry
+#    wet_train_dir: ../data/melda_ph_irregular/train/wet
+#    wet_val_dir: ../data/melda_ph_irregular/train/wet
+#    dry_train_dir: ../data/ableton/dry
+#    dry_val_dir: ../data/ableton/dry
+    dry_train_dir: ../data/egfx_clean_44100/train
+    dry_val_dir: ../data/egfx_clean_44100/val
 #    wet_train_dir: ../data/melda_tri_asymm/wet
 #    wet_val_dir: ../data/melda_tri_asymm/wet
-    wet_train_dir: ../data/ableton/wet
-    wet_val_dir: ../data/ableton/wet
+#    wet_train_dir: ../data/ableton/wet
+#    wet_val_dir: ../data/ableton/wet
 #    wet_train_dir: ../data/egfx_phaser_44100/train
 #    wet_val_dir: ../data/egfx_phaser_44100/val
 #    wet_train_dir: ../data/egfx_flanger_44100/train
 #    wet_val_dir: ../data/egfx_flanger_44100/val
-#    wet_train_dir: ../data/egfx_chorus_44100/train
-#    wet_val_dir: ../data/egfx_chorus_44100/val
+    wet_train_dir: ../data/egfx_chorus_44100/train
+    wet_val_dir: ../data/egfx_chorus_44100/val
     train_num_examples_per_epoch: 8000
     val_num_examples_per_epoch: 2000
     n_samples: 88200
     sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-    silence_threshold_energy: 1e-6
-#    silence_threshold_energy: 1e-4
-    n_retries: 10
+#    silence_threshold_energy: 1e-6
+    silence_threshold_energy: 1e-4
+    n_retries: 1000
     check_dataset: false
     end_buffer_n_samples: 0
 #    end_buffer_n_samples: 4000

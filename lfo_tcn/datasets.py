@@ -12,6 +12,7 @@ from scipy.stats import loguniform
 from torch import Tensor as T
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import pyloudnorm as pyln
 
 from lfo_tcn import fx
 from lfo_tcn.fx import make_mod_signal, make_quasi_periodic, make_concave_convex_mod_sig, make_combined_mod_sig
@@ -346,6 +347,15 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
         if wet_chunk.size(0) > 1:
             wet_chunk = wet_chunk[ch_idx, :].view(1, -1)
         assert dry_chunk.shape == wet_chunk.shape
+
+        # TODO(cm)
+        # dry = dry_chunk.T.numpy()
+        # wet = wet_chunk.T.numpy()
+        # dry = pyln.normalize.peak(dry, -1.0)
+        # wet = pyln.normalize.peak(wet, -1.0)
+        # dry_chunk = tr.from_numpy(dry.T)
+        # wet_chunk = tr.from_numpy(wet.T)
+
         return dry_chunk, wet_chunk
 
 

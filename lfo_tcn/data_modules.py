@@ -323,6 +323,47 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
             )
 
 
+class RandomAudioChunkAndModSigDataModule(PedalboardPhaserDataModule):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.train_dataset = RandomAudioChunkAndModSigDataset(
+                self.fx_config,
+                self.train_dir,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.train_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
+            )
+        if stage == "validate" or "fit":
+            self.val_dataset = RandomAudioChunkAndModSigDataset(
+                self.fx_config,
+                self.val_dir,
+                n_samples=self.n_samples,
+                sr=self.sr,
+                ext=self.ext,
+                num_examples_per_epoch=self.val_num_examples_per_epoch,
+                silence_fraction_allowed=self.silence_fraction_allowed,
+                silence_threshold_energy=self.silence_threshold_energy,
+                n_retries=self.n_retries,
+                use_debug_mode=self.use_debug_mode,
+                check_dataset=self.check_dataset,
+                end_buffer_n_samples=self.end_buffer_n_samples,
+            )
+
+    def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):
+        dry, mod_sig, fx_params = batch
+        return None, dry, mod_sig, fx_params
+
+
 class FlangerCPUDataModule(PedalboardPhaserDataModule):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

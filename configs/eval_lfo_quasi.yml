@@ -5,7 +5,8 @@ custom:
   project_name: lfo_tcn
   model_name: eval_model
   dataset_name: eval_dataset
-  cpu_batch_size: 8
+#  cpu_batch_size: 8
+  cpu_batch_size: 125
   cpu_val_num_examples_per_epoch: 8
   use_wandb: false
 

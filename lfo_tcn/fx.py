@@ -57,6 +57,47 @@ def make_mod_signal(n_samples: int,
     return mod_sig
 
 
+def make_rand_mod_signal(batch_size: int,
+                         n_samples: int,
+                         sr: float,
+                         freq_min: float,
+                         freq_max: float,
+                         shapes_all: Optional[T] = None,
+                         shapes: Optional[List[str]] = None,
+                         phase_all: Optional[T] = None,
+                         phase_error: float = 0.5,
+                         freq_all: Optional[T] = None,
+                         freq_error: float = 0.25) -> T:
+    if shapes is None:
+        shapes = ["cos", "tri", "rect_cos", "inv_rect_cos", "saw", "rsaw"]
+    mod_sigs = []
+    for idx in range(batch_size):
+        if phase_all is not None:
+            phase = phase_all[idx]
+            if phase_error > 0:
+                error = sample_uniform(-1.0, 1.0) * tr.pi * phase_error
+                phase += error
+                phase = (phase + (2 * tr.pi)) % (2 * tr.pi)
+        else:
+            phase = sample_uniform(0.0, 2 * tr.pi)
+        if freq_all is not None:
+            freq = freq_all[idx]
+            if freq_error > 0:
+                error = sample_uniform(1.0 - freq_error, 1.0 + freq_error)
+                freq *= error
+                freq = tr.clip(freq, freq_min, freq_max)
+        else:
+            freq = sample_uniform(freq_min, freq_max)
+        if shapes_all is not None:
+            shape = shapes_all[idx]
+        else:
+            shape = choice(shapes)
+        mod_sig = make_mod_signal(n_samples, sr, freq, phase, shape)
+        mod_sigs.append(mod_sig)
+    mod_sigs = tr.stack(mod_sigs, dim=0)
+    return mod_sigs
+
+
 def _time_stretch_section(section: T,
                           l_min: float,
                           l_max: float,

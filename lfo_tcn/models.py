@@ -180,6 +180,7 @@ class Spectral2DCNN(nn.Module):
         #     paths.append(ch_x)
         # x = tr.cat(paths, dim=1)
 
+        # TODO(cm): disable when training EM
         if self.training:
             if self.freq_mask_amount > 0:
                 x = self.freq_masking(x)

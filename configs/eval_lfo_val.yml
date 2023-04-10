@@ -41,11 +41,11 @@ data:
           max: 6.28318530718
         shapes:
           - cos
-          - tri
-          - rect_cos
-          - inv_rect_cos
-          - saw
-          - rsaw
+#          - tri
+#          - rect_cos
+#          - inv_rect_cos
+#          - saw
+#          - rsaw
         exp: 1.0
       flanger:
         max_min_delay_ms: 1.0

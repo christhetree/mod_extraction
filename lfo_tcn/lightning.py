@@ -9,7 +9,7 @@ from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
-from lfo_tcn.fx import stretch_corners, find_valid_mod_sig_indices
+from lfo_tcn.fx import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
 from lfo_tcn.losses import get_loss_func_by_name
 from lfo_tcn.models import HiddenStateModel
 from lfo_tcn.util import linear_interpolate_last_dim
@@ -111,6 +111,23 @@ class LFOExtraction(BaseLightingModule):
             mod_sig_hat, latent = self.model(wet)
         mod_sig_hat = mod_sig_hat.squeeze(1)
 
+        # dry = wet
+        # phase_all = fx_params["phase"]
+        # freq_all = fx_params["rate_hz"]
+        # shapes_all = fx_params["shape"]
+        # mod_sig_hat = make_rand_mod_signal(
+        #     batch_size=wet.size(0),
+        #     n_samples=345,
+        #     sr=172.5,
+        #     freq_min=0.5,
+        #     freq_max=3.0,
+        #     shapes_all=shapes_all,
+        #     freq_all=freq_all,
+        #     phase_all=phase_all,
+        #     freq_error=0.25,
+        #     phase_error=0.5,
+        # )
+
         if mod_sig is None:
             mod_sig = tr.zeros_like(mod_sig_hat)
         else:
@@ -147,7 +164,7 @@ class LFOExtraction(BaseLightingModule):
             "wet": wet.detach().float().cpu(),
             "mod_sig": mod_sig.detach().float().cpu(),
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
-            "latent": latent.detach().float().cpu(),
+            # "latent": latent.detach().float().cpu(),
         }
         if dry is not None:
             data_dict["dry"] = dry.detach().float().cpu()
@@ -385,9 +402,6 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         assert dry.size(-1) == wet.size(-1)
         assert dry.size(-1) >= self.warmup_n_samples + self.step_n_samples
 
-        # dry = tr.clip(4 * dry, -1.0, 1.0)
-        # wet = tr.clip(4 * wet, -1.0, 1.0)
-
         lfo_model_input = wet
         if self.use_dry:
             lfo_model_input = tr.cat([dry, wet], dim=1)
@@ -399,12 +413,29 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         dry = self.center_crop_mod_sig(dry, n_samples)
         wet = self.center_crop_mod_sig(wet, n_samples)
 
+        # freq_all = tr.ones((wet.size(0),)) * 0.75
+        # freq_all = tr.ones((wet.size(0),)) * 2.0
+        # mod_sig_hat = make_rand_mod_signal(
+        #     batch_size=wet.size(0),
+        #     n_samples=345,
+        #     sr=172.5,
+        #     freq_min=0.5,
+        #     freq_max=2.0,
+        #     shapes=["tri"],
+        #     freq_all=freq_all,
+        #     freq_error=0.0,
+        #     # freq_error=0.25,
+        # )
+        # mod_sig_hat = mod_sig_hat.to(self.device)
+
+        # mod_sig_hat = tr.zeros((wet.size(0), 345)).to(self.device)
+
         if self.discard_invalid_lfos:
             valid_indices = find_valid_mod_sig_indices(mod_sig_hat)
             if not valid_indices:
                 log.info("No valid LFO signals found")
                 return None
-            log.info(f"Found {len(valid_indices)} valid LFO signals")
+            # log.info(f"Found {len(valid_indices)} valid LFO signals")
             dry = dry[valid_indices, ...]
             wet = wet[valid_indices, ...]
             mod_sig_hat = mod_sig_hat[valid_indices, ...]
@@ -482,21 +513,22 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         if fx_params is not None:
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
-        # from matplotlib import pyplot as plt
-        # from lfo_tcn.plotting import plot_spectrogram
-        # for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
-        #                                            data_dict["wet"],
-        #                                            data_dict["wet_hat"],
-        #                                            data_dict["mod_sig_hat"])):
-        #     if "mod_sig" in data_dict:
-        #         m = data_dict["mod_sig"][idx]
-        #         plt.plot(m)
-        #     plt.plot(m_h)
-        #     plt.title(f"mod_sig_{idx}")
-        #     plt.show()
-        #     # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
-        #     plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
-        #     plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"wet_hat_{idx}", sr=self.sr)
-        # exit()
+        if wet.size(0) < 10:
+            from matplotlib import pyplot as plt
+            from lfo_tcn.plotting import plot_spectrogram
+            for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
+                                                       data_dict["wet"],
+                                                       data_dict["wet_hat"],
+                                                       data_dict["mod_sig_hat"])):
+                if "mod_sig" in data_dict:
+                    m = data_dict["mod_sig"][idx]
+                    plt.plot(m)
+                plt.plot(m_h)
+                plt.title(f"mod_sig_{idx}")
+                plt.show()
+                plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
+                plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+                plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"wet_hat_{idx}", sr=self.sr)
+            exit()
 
         return batch_loss, data_dict, fx_params

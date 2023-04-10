@@ -25,7 +25,7 @@ class CustomLightningCLI(LightningCLI):
         "callbacks": [
             LearningRateMonitor(logging_interval="step"),
             LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
-            # LogAudioCallback(n_examples=4, log_dry_audio=True),
+            LogAudioCallback(n_examples=4, log_dry_audio=True),
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
@@ -177,5 +177,5 @@ class CustomLightningCLI(LightningCLI):
 
     # def after_validate(self) -> None:
     #     print("=================================================================")
-    #     print("eval ch idmt_4 all varying")
+    #     print("eval rand correct shape freq 25% phase 50% distorted all")
     #     print("=================================================================")

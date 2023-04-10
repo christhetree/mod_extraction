@@ -14,12 +14,12 @@ init_args:
 #  out_channels: [1, 2, 4, 8, 16]
 #  out_channels: [32, 32, 32, 32, 32]
 #  temp_dilations: [1, 2, 4, 8, 16]
-  temp_dilations: [1, 1, 2, 4, 8, 16]  #
+  temp_dilations: [1, 1, 2, 4, 8, 16]
 #  pool_size: [3, 1]
   pool_size: [2, 1]
   latent_dim: 1
-#  freq_mask_amount: 0.0
-  freq_mask_amount: 0.25
-#  time_mask_amount: 0.0
-  time_mask_amount: 0.25
+  freq_mask_amount: 0.0
+#  freq_mask_amount: 0.25
+  time_mask_amount: 0.0
+#  time_mask_amount: 0.25
   use_ln: true

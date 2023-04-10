@@ -5,18 +5,18 @@ custom:
   project_name: lfo_tcn
   model_name: eval_model
   dataset_name: eval_dataset
-  cpu_batch_size: 8
-#  cpu_batch_size: 125
+#  cpu_batch_size: 8
+  cpu_batch_size: 125
   cpu_val_num_examples_per_epoch: 8
   use_wandb: false
 
 trainer:
   accelerator: gpu
-  devices: [2]
+  devices: [1]
   num_sanity_val_steps: 0
 
 data:
-  class_path: lfo_tcn.data_modules.FlangerCPUDataModule
+  class_path: lfo_tcn.data_modules.RandomAudioChunkAndModSigDataModule
   init_args:
     batch_size: 125
     num_workers: 8
@@ -41,45 +41,23 @@ data:
           min: 0.0
           max: 6.28318530718
         shapes:
-#          - cos
-#          - tri
-#          - rect_cos
-#          - inv_rect_cos
-#          - saw
+          - cos
+          - tri
+          - rect_cos
+          - inv_rect_cos
+          - saw
           - rsaw
-        exp: 2.0
-      flanger:
-        max_min_delay_ms: 1.0
-#        max_min_delay_ms: 20.0
-        max_lfo_delay_ms: 4.0
-#        max_lfo_delay_ms: 10.0
-        feedback:
-          min: 0.25
-          max: 0.25
-        min_delay_width:
-          min: 1.0
-          max: 1.0
-        width:
-          min: 1.0
-          max: 1.0
-        depth:
-          min: 1.0
-          max: 1.0
-        mix:
-          min: 1.0
-          max: 1.0
+        exp: 1.0
 
 model:
   class_path: lfo_tcn.lightning.LFOExtraction
   init_args:
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
-    model_smooth_n_frames: 4
+    model_smooth_n_frames: 0
     should_stretch: false
     loss_dict:
       l1: 1.0
       fdl1: 5.0
       sdl1: 10.0
       mse: 0.0
-
-
