@@ -9,7 +9,7 @@ from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
-from lfo_tcn.fx import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
+from lfo_tcn.modulations import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
 from lfo_tcn.losses import get_loss_func_by_name
 from lfo_tcn.models import HiddenStateModel
 from lfo_tcn.util import linear_interpolate_last_dim

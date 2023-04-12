@@ -22,7 +22,10 @@ if __name__ == "__main__":
 
     # config_name = "train_em_phaser.yml"
     # config_name = "train_em_preproc.yml"
-    config_name = "train_em_dry_wet.yml"
+    # config_name = "train_em_dry_wet.yml"
+
+    config_name = "a3_train_em_phaser.yml"
+    # config_name = "a3_train_lfo_phaser.yml"
 
     config_path = os.path.join(CONFIGS_DIR, config_name)
     cli = CustomLightningCLI(args=["fit", "-c", config_path],

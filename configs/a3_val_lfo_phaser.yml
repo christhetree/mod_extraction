@@ -1,0 +1,64 @@
+seed_everything: 43
+
+#ckpt_path: ../models/a3__lfo_2dcnn_sa_25_25_5x24__ph_rate_idmt_4__epoch_48_step_784.ckpt
+#ckpt_path: ../models/a3__lfo_2dcnn_sa_25_25__ph_rate_idmt_4__epoch_46_step_752.ckpt
+ckpt_path: ../models/a3__lfo_2dcnn_sa_25_25_5x24_only_l1__ph_rate_idmt_4__epoch_48_step_784.ckpt
+
+custom:
+  project_name: lfo_tcn
+  model_name: val_model
+  dataset_name: val_dataset
+#  cpu_batch_size: 8
+  cpu_batch_size: 100
+
+trainer:
+  accelerator: gpu
+  devices: [1]
+
+data:
+  class_path: lfo_tcn.data_modules.PedalboardPhaserDataModule
+  init_args:
+    batch_size: 100
+    num_workers: 5
+    use_debug_mode: false
+    train_dir: ../data/marco/idmt_drums
+    val_dir: ../data/marco/idmt_drums
+    train_num_examples_per_epoch: 0
+    val_num_examples_per_epoch: 1000
+    n_samples: 88200
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 1e-4
+    n_retries: 1000
+    check_dataset: false
+    fx_config:
+      pedalboard_phaser:
+        rate_hz:
+          min: 0.5
+          max: 3.0
+        depth:
+          min: 0.5
+          max: 0.5
+        centre_frequency_hz:
+          min: 440.0
+          max: 440.0
+        feedback:
+          min: 0.5
+          max: 0.5
+        mix:
+          min: 1.0
+          max: 1.0
+
+model:
+  class_path: lfo_tcn.lightning.LFOExtraction
+  init_args:
+    model: ../configs/models/a3_spectral_2dcnn.yml
+    use_dry: true
+    model_smooth_n_frames: 8
+    should_stretch: false
+    loss_dict:
+      l1: 1.0
+      fdl1: 5.0
+      sdl1: 10.0
+      mse: 0.0

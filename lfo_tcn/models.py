@@ -283,15 +283,20 @@ class SpectralDSTCN(nn.Module):
 class HiddenStateModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.hidden: Optional[Tuple[T, ...]] = None
+        self.hidden: Tuple[T, T] = (tr.zeros((1,)), tr.zeros((1,)))  # Must be initialized as a tensor for torchscript tracing
+        self.is_hidden_init = False
+
+    def update_hidden(self, hidden: Tuple[T, T]) -> None:
+        self.hidden = hidden
+        self.is_hidden_init = True
 
     def detach_hidden(self) -> None:
-        if self.hidden is not None:
+        if self.is_hidden_init:
             # TODO: check whether clone is required or not
             self.hidden = tuple((h.detach().clone() for h in self.hidden))
 
     def clear_hidden(self) -> None:
-        self.hidden = None
+        self.is_hidden_init = False
 
 
 class LSTMEffectModel(HiddenStateModel):
@@ -312,13 +317,17 @@ class LSTMEffectModel(HiddenStateModel):
         assert x.ndim == 3
         assert latent.shape == (x.size(0), self.latent_dim, x.size(-1))
         lstm_in = tr.cat([latent, x], dim=1)
+        # lstm_in = x
         lstm_in = tr.swapaxes(lstm_in, 1, 2)
-        lstm_out, new_hidden = self.lstm(lstm_in, self.hidden)
+        if self.is_hidden_init:
+            lstm_out, new_hidden = self.lstm(lstm_in, self.hidden)
+        else:
+            lstm_out, new_hidden = self.lstm(lstm_in)
         fc_out = self.fc(lstm_out)
         fc_out = tr.swapaxes(fc_out, 1, 2)
         y_hat = fc_out + x
         y_hat = tr.tanh(y_hat)
-        self.hidden = new_hidden
+        self.update_hidden(new_hidden)
         return y_hat
 
 

@@ -15,7 +15,7 @@ from tqdm import tqdm
 import pyloudnorm as pyln
 
 from lfo_tcn import fx
-from lfo_tcn.fx import make_mod_signal, make_quasi_periodic, make_concave_convex_mod_sig, make_combined_mod_sig
+from lfo_tcn.modulations import make_mod_signal, make_quasi_periodic, make_concave_convex_mod_sig, make_combined_mod_sig
 from lfo_tcn.plotting import plot_spectrogram
 from lfo_tcn.util import linear_interpolate_last_dim
 

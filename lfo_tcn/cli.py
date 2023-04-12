@@ -24,8 +24,8 @@ class CustomLightningCLI(LightningCLI):
         "accelerator": "gpu",
         "callbacks": [
             LearningRateMonitor(logging_interval="step"),
-            LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
-            LogAudioCallback(n_examples=4, log_dry_audio=True),
+            # LogSpecAndModSigCallback(n_examples=4, log_wet_hat=True),
+            # LogAudioCallback(n_examples=4, log_dry_audio=True), #
             ModelCheckpoint(
                 filename="epoch_{epoch}_step_{step}",  # Name is appended
                 auto_insert_metric_name=False,
@@ -130,7 +130,7 @@ class CustomLightningCLI(LightningCLI):
             config.trainer.devices = None
             config.trainer.strategy = None
             config.data.init_args.batch_size = config.custom.cpu_batch_size
-            config.data.init_args.num_workers = 0
+            # config.data.init_args.num_workers = 0
 
             for link_args in self.cli_config["cpu_link_arguments_if_possible"]:
                 src = link_args["src"]
