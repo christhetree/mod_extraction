@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en" class="h-100">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="Christian Steinmetz">
+    <title>Efficient neural networks for real-time modeling of analog dynamic range compression</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <meta name="theme-color" content="#563d7c">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+</head>
+
+<body>
+    <!-- Page Content -->
+    <div class="text-center">
+        <div class="row">
+            <div class="col-lg-12">
+                <br>
+                <h1 class="mt-5 mb-3">Efficient neural networks for real-time modeling <br> of analog dynamic range
+                    compression
+                </h1>
+                <p class="lead">
+                    <a href="https://www.christiansteinmetz.com/">Christian J. Steinmetz</a> and
+                    <a href="http://www.eecs.qmul.ac.uk/~josh/">Joshua D. Reiss</a>
+                </p>
+
+                <p class="lead">Centre for Digital Music, Queen Mary University of London</p>
+                <div>
+                    <a class="btn btn-outline-dark" href="https://arxiv.org/abs/2102.06200" type="button"><i
+                            class="bi bi-newspaper"></i> Paper</a>
+                    <a class="btn btn-outline-dark" href="https://github.com/csteinmetz1/micro-tcn" type="button">
+                        <i class="bi bi-code-slash"></i> Code</a>
+                    <a class="btn btn-outline-dark" href="https://github.com/csteinmetz1/neural-2a" type="button"> <i
+                            class="bi bi-box"></i> Plugin</a>
+                    <a class="btn btn-outline-dark" href="https://youtu.be/GIB2rkz0UUw" type="button"> <i
+                            class="bi bi-camera-reels"></i> Video</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section mt-5 mb-5">
+            <div class="abstract">
+                <h2>Abstract</h1>
+                    <hr>
+                    <p>
+                        Deep learning approaches have demonstrated success in modeling analog audio effects.
+                        Nevertheless, challenges remain in modeling more complex effects that involve time-varying
+                        nonlinear
+                        elements, such as dynamic range compressors.
+                        Previous approaches for modeling analog compressors either ignore the device parameters, do not
+                        attain sufficient accuracy, or otherwise require large noncausal models prohibiting real-time
+                        operation.
+                        In this work, we propose a modification to temporal convolutional networks (TCNs) that enables
+                        greater efficiency without sacrificing performance.
+                        By utilizing very sparse convolutional kernels through rapidly growing dilations, our proposed
+                        model
+                        attains a significant receptive field using fewer layers, reducing computation.
+                        Through a detailed evaluation we demonstrate our efficient and causal approach achieves
+                        state-of-the-art performance in modeling the analog LA-2A compressor, is capable of real-time
+                        operation on CPU, and only requires 10 minutes of training data.
+                    </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="">Results</h2>
+            <hr>
+            <div class="row mb-4">
+                <div class="col-md-6 text-center">
+                    <img class="img-fluid" src="img/tcn-arch.svg">
+                </div>
+                <div class="col-md-6">
+                    <p>
+                        Here we compare the test performance of three models.
+                        All examples here come from the test set of the <a
+                            href="https://zenodo.org/record/3824876">SignalTrain LA2A Dataset</a>,
+                        which contains audio that was not seen during training.
+                        The <span class="tcn">TCN-300-C</span> model featured is causal, was trained using 1% of the
+                        SignalTrain dataset, and is capable of running in real-time on CPU.
+                        Results from a perceptual evaluation (MUSHRA-style) using these audio samples are shown below.
+                    </p>
+                </div>
+            </div>
+
+            <table class="table table-sm text-center" style="vertical-align: middle;">
+                <tr>
+                    <th class="passage">Example</th>
+                    <th>Input</th>
+                    <th> <span class="target">Reference</span> <br> <span class="detail">(Analog LA-2A)</span></th>
+                    <th> <span class="signaltrain">SignalTrain</span> <br> <span class="detail">(Hawley et al.)</span>
+                    </th>
+                    <th> <span class="tcn">TCN-300-C</span> <br> <span class="detail">(Ours)</span> </th>
+                    <th> <span class="lstm">LSTM-32</span> <br> <span class="detail">(Ours)</span></th>
+                </tr>
+                <tr>
+                    <td class="passage">Song <p class="params">Limit: 1 Peak: 80</p>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/song-1-80-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/song-1-80-target.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/song-1-80-signaltrain.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/song-1-80-tcn-300-c.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/song-1-80-lstm.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="passage">PnoA <p class="params">Limit: 0 Peak: 65</p>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoA-0-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoA-0-65-target.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoA-0-65-signaltrain.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoA-0-65-tcn-300-c.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoA-0-65-lstm.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="passage">PnoB <p class="params">Limit: 1 Peak: 80</p>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoB-1-80-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoB-1-80-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoB-1-80-signaltrain.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoB-1-80-tcn-300-c.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/pianoB-1-80-lstm.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="passage">EGtr <p class="params">Limit: 0 Peak: 65</p>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/egtr-0-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/egtr-0-65-target.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/egtr-0-65-signaltrain.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/egtr-0-65-tcn-300-c.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/egtr-0-65-lstm.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="passage">AcGtr <br>
+                        <p class="params">Limit: 1 Peak: 65</p>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                    <td>
+                        <audio controls class="player">
+                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </td>
+                </tr>
+            </table>
+            <p class="text-center">No normalization has been applied to the listening samples, but they have been
+                encoded to VBR mp3.</p>
+            <div class="text-center">
+
+            </div>
+            <hr>
+            <div class="row mb-4">
+                <div class="col-md-5">
+                    <p class="mt-3">
+                        We found that both the <span class="lstm">LSTM-32</span> and <span class="tcn">TCN-300-C</span>
+                        models produce perceptually similar results.
+                        Although, these results indicate that while both models are significantly closer to the
+                        reference than <span class="signaltrain">SignalTrain</span>,
+                        listeners will still able to hear subtle differences between the reference.
+                        In comments from participants, and in our own listening, we found that this discrepancy was
+                        often due to a subtle difference in how transients were handled by the neural network
+                        approaches.
+                        It appears that both the <span class="lstm">LSTM-32</span> and <span
+                            class="tcn">TCN-300-C</span> models often are less aggressive in suppressing some transients
+                        when large amount of gain reduction are applied.
+                    </p>
+                </div>
+                <div class="col-md-7 text-center">
+                    <img class="img-fluid" src="img/mushra.svg">
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="mt-5">Try it out</h2>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6 text-center">
+                        <img style="margin-bottom: 20px" class="img-fluid" src="img/la-2a-no-branding.jpg">
+                        <label for="source">Choose a source:</label>
+                        <select name="source" id="source">
+                            <option value="fvox">Female Vocal</option>
+                            <option value="overhead">Drums</option>
+                            <option value="bass">Bass</option>
+                            <option value="dirty-egtr">Electric Guitar (distorted)</option>
+                            <option value="agtr">Acoustic Guitar</option>
+                            <option value="sax">Saxophone</option>
+                            <option value="SongA">Song A</option>
+                            <option value="SongB">Song B</option>
+
+                        </select>
+                    </div>
+                    <div class="col-md-4 text-center" style="display: inline-block;">
+                        <audio id="input" loop class="player">
+                            <source id="input_source" src="audio/demo/fvox.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                        <audio id="compressor" loop class="player">
+                            <source id="compressor_source" src="audio/demo/fvox-1-80-tcn-300-c.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                        <button id="bypass">On</button>
+                        <button id="play">Stopped</button>
+                    </div>
+
+                </div>
+                <div class="row">
+                    <div class="col-md-6 text-center">
+                        <div class="slidecontainer">
+                            <div style="margin-top: 20px;">
+                                <p>Limit: <span id="limit_val"></span></p>
+                                <input type="range" min="0" max="1" value="1" class="slider" id="limit">
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <p>Peak Reduction: <span id="peak_reduction_val"></span></p>
+                                <input type="range" min="0" max="100" value="80" step=10 class="slider"
+                                    id="peak_reduction">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <p>
+                            In this demo you can interact with some pre-processed outputs in order to get a feel for the
+                            quality of the models.
+                            First select a source from the drop-down menu above.
+                            Then you can toggle between the input (unprocessed) and the output of the model (TCN-300-C
+                            with 1% of the training data).
+                            You will note that as your increase the peak reduction, the output level is reduced
+                            significantly.
+                        </p>
+                        <p>
+                            <i>Note: This interface is a bit buggy.</i>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div class="section">
+                <h2>Citation</h2>
+                <hr>
+                <div style="background-color: #e9ecef;">
+                    <pre>
+                <code>
+    @inproceedings{steinmetz2021efficient,
+            title={Efficient neural networks for real-time analog audio effect modeling},
+            author={Steinmetz, Christian J. and Reiss, Joshua D.},
+            booktitle={152nd Audio Engineering Society Convention},
+            year={2022}}</code>
+                </pre>
+                </div>
+            </div>
+
+            <hr>
+            <footer>
+                <p>*Accepted to the 152nd AES Convention</p>
+                <p>Send feedback and questions to <a href="http://christiansteinmetz.com">Christian Steinmetz</a>.</p>
+            </footer>
+        </div>
+
+        <!-- Bootstrap core JavaScript -->
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+            crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+            crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"
+            integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+            crossorigin="anonymous"></script>
+        <script src="js/slider.js"></script>
+</body>
+
+</html>
