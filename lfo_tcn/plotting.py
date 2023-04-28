@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Subplot
 from matplotlib.figure import Figure
 from torch import Tensor as T
-from torchaudio.transforms import Spectrogram
+from torchaudio.transforms import Spectrogram, Fade
 from torchvision.transforms import ToTensor
 
 from lfo_tcn.paths import OUT_DIR
@@ -58,6 +58,9 @@ def plot_spectrogram(audio: T,
         sr = int(sr)
         if not save_name.endswith(".wav"):
             save_name = f"{save_name}.wav"
+        # TODO(cm)
+        transform = Fade(fade_in_len=64, fade_out_len=64, fade_shape="linear")
+        audio = transform(audio)
         save_path = os.path.join(save_dir, save_name)
         torchaudio.save(save_path, audio, sr)
 

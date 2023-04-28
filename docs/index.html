@@ -5,399 +5,1409 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="description" content="">
-    <meta name="author" content="Christian Steinmetz">
-    <title>Efficient neural networks for real-time modeling of analog dynamic range compression</title>
+    <meta name="author" content="Christopher Mitcheltree">
+    <title>Modulation Extraction for LFO-driven Audio Effects</title>
 
     <!-- Bootstrap core CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+          integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <meta name="theme-color" content="#563d7c">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
 </head>
 
 <body>
-    <!-- Page Content -->
-    <div class="text-center">
-        <div class="row">
-            <div class="col-lg-12">
-                <br>
-                <h1 class="mt-5 mb-3">Efficient neural networks for real-time modeling <br> of analog dynamic range
-                    compression
-                </h1>
-                <p class="lead">
-                    <a href="https://www.christiansteinmetz.com/">Christian J. Steinmetz</a> and
-                    <a href="http://www.eecs.qmul.ac.uk/~josh/">Joshua D. Reiss</a>
-                </p>
+<!-- Page Content -->
+<div class="text-center">
+    <div class="row">
+        <div class="col-lg-12">
+            <br>
+            <h1 class="mt-5 mb-3">Modulation Extraction for LFO-driven Audio Effects</h1>
+            <p class="lead">
+                <a href="https://christhetr.ee/" target=”_blank”>Christopher Mitcheltree</a>,
+                <a href="https://www.christiansteinmetz.com/" target=”_blank”>Christian J. Steinmetz</a>,
+                <a href="https://mcomunita.github.io/" target=”_blank”>Marco Comunità</a>, and
+                <a href="https://www.eecs.qmul.ac.uk/~josh/" target=”_blank”>Joshua D. Reiss</a>
+            </p>
 
-                <p class="lead">Centre for Digital Music, Queen Mary University of London</p>
-                <div>
-                    <a class="btn btn-outline-dark" href="https://arxiv.org/abs/2102.06200" type="button"><i
-                            class="bi bi-newspaper"></i> Paper</a>
-                    <a class="btn btn-outline-dark" href="https://github.com/csteinmetz1/micro-tcn" type="button">
-                        <i class="bi bi-code-slash"></i> Code</a>
-                    <a class="btn btn-outline-dark" href="https://github.com/csteinmetz1/neural-2a" type="button"> <i
-                            class="bi bi-box"></i> Plugin</a>
-                    <a class="btn btn-outline-dark" href="https://youtu.be/GIB2rkz0UUw" type="button"> <i
-                            class="bi bi-camera-reels"></i> Video</a>
-                </div>
+            <p class="lead">Centre for Digital Music, Queen Mary University of London</p>
+            <div>
+                <a class="btn btn-outline-dark" href="docs/dafx_2023_lfo_v2.pdf" target=”_blank” type="button">
+                    <i class="bi bi-newspaper"></i> Paper</a>
+                <!--                <a class="btn btn-outline-dark" href="https://github.com/christhetree/mod_extraction" target=”_blank”-->
+                <!--                   type="button">-->
+                <!--                    <i class="bi bi-code-slash"></i> Code</a>-->
+                <a class="btn btn-outline-dark" href="#plugins" type="button">
+                    <i class="bi bi-box"></i> Plugins</a>
+                <!--                    <a class="btn btn-outline-dark" href="https://youtu.be/GIB2rkz0UUw" type="button"> <i-->
+                <!--                            class="bi bi-camera-reels"></i> Video</a>-->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="section mt-5 mb-5">
+        <div class="abstract">
+            <h2>Abstract</h2>
+            <hr>
+            <p>
+                Low frequency oscillator (LFO) driven audio effects such as phaser, flanger, and chorus, modify
+                their input using time-varying filters and delays, resulting in characteristic sweeping or widening
+                effects.
+                It has been shown that these effects can be modeled using neural networks that are conditioned with
+                the ground truth LFO signal. However, in most cases this signal is not accessible and cannot be
+                easily measured from the output audio.
+                To address this, we propose a neural network that can accurately extract arbitrary LFO signals from
+                processed audio for multiple digital audio effects, parameter settings, and instrument
+                configurations.
+                Since our system imposes no restrictions on the LFO signal shape, we demonstrate its ability to
+                extract quasiperiodic, combined, and distorted modulation signals that are relevant to analog effect
+                modeling.
+                Furthermore, we show how coupling the extraction model with a simple processing network enables
+                training of end-to-end black-box models of unseen analog or digital LFO-driven audio effects from
+                just dry and wet audio pairs - hence overcoming the need to access the audio effect plugin or
+                internal LFO signal.
+                We make our code available and provide the trained audio effect models in a real-time VST plugin.
+            </p>
+        </div>
+    </div>
+
+    <!--    <div class="section">-->
+    <!--        <h2 class="">LFO Extraction Examples</h2>-->
+    <!--        <hr>-->
+    <!--        <div class="row mb-4">-->
+    <!--            <div class="col-md-6 text-center">-->
+    <!--                <img class="img-fluid" src="img/tcn-arch.svg">-->
+    <!--            </div>-->
+    <!--            <div class="col-md-6">-->
+    <!--                <p>-->
+    <!--                    TBD.-->
+    <!--                </p>-->
+    <!--            </div>-->
+    <!--        </div>-->
+
+    <!--        <table class="table table-sm text-center" style="vertical-align: middle;">-->
+    <!--            <tr>-->
+    <!--                <th class="passage">Example</th>-->
+    <!--                <th>Input</th>-->
+    <!--                <th><span class="target">Reference</span> <br> <span class="detail">(Analog LA-2A)</span></th>-->
+    <!--                <th><span class="signaltrain">SignalTrain</span> <br> <span class="detail">(Hawley et al.)</span>-->
+    <!--                </th>-->
+    <!--                <th><span class="tcn">TCN-300-C</span> <br> <span class="detail">(Ours)</span></th>-->
+    <!--                <th><span class="lstm">LSTM-32</span> <br> <span class="detail">(Ours)</span></th>-->
+    <!--            </tr>-->
+    <!--            <tr>-->
+    <!--                <td class="passage">Song <p class="params">Limit: 1 Peak: 80</p>-->
+    <!--                </td>-->
+    <!--                <td>-->
+    <!--                    <audio controls class="player">-->
+    <!--                        <source src="audio/mushra/song-1-80-input.mp3" type="audio/mpeg">-->
+    <!--                        Your browser does not support the audio element.-->
+    <!--                    </audio>-->
+    <!--                </td>-->
+    <!--                <td>-->
+    <!--                    <audio controls class="player">-->
+    <!--                        <source src="audio/mushra/song-1-80-target.mp3" type="audio/mpeg">-->
+    <!--                        Your browser does not support the audio element.-->
+    <!--                    </audio>-->
+    <!--                </td>-->
+    <!--                <td>-->
+    <!--                    <audio controls class="player">-->
+    <!--                        <source src="audio/mushra/song-1-80-signaltrain.mp3" type="audio/mpeg">-->
+    <!--                        Your browser does not support the audio element.-->
+    <!--                    </audio>-->
+    <!--                </td>-->
+    <!--                <td>-->
+    <!--                    <audio controls class="player">-->
+    <!--                        <source src="audio/mushra/song-1-80-tcn-300-c.mp3" type="audio/mpeg">-->
+    <!--                        Your browser does not support the audio element.-->
+    <!--                    </audio>-->
+    <!--                </td>-->
+    <!--                <td>-->
+    <!--                    <audio controls class="player">-->
+    <!--                        <source src="audio/mushra/song-1-80-lstm.mp3" type="audio/mpeg">-->
+    <!--                        Your browser does not support the audio element.-->
+    <!--                    </audio>-->
+    <!--                </td>-->
+    <!--            </tr>-->
+    <!--        </table>-->
+
+    <!--        <p class="text-center">No normalization has been applied to the listening samples, but they have been-->
+    <!--            encoded to VBR mp3.</p>-->
+    <!--        <div class="text-center"></div>-->
+    <!--        <hr>-->
+    <!--    </div>-->
+
+    <div class="section">
+        <h2 class="">Listening Samples</h2>
+        <hr>
+        <div class="row mb-4">
+            <div class="col-md-6 text-center">
+                <img class="img-fluid" src="img/sys_diagram.png">
+            </div>
+            <div class="col-md-6">
+                <p>
+                    We provide listening examples for the unseen digital and analog effect modeling tasks below.
+                    For consistency, both baseline and LSTM-64 audio samples were conditioned with the same extracted
+                    LFO signal shown in the table for each example.
+                    Audio samples come from the fourth subset of the
+                    <a href="https://zenodo.org/record/7544110" target=”_blank”>IDMT-SMT-Guitar</a> dataset for the
+                    Melda digital effects and from the
+                    <a href="https://zenodo.org/record/7044411#.YzRx2XbMKUl" target=”_blank”>EGFx</a> dataset for the
+                    analog effects.
+                </p>
+                <p>
+                    As discussed in more detail in the paper, we found the EGFx dataset to be particularly challenging
+                    to use for training due to large differences in power supply noise between dry and wet audio pairs,
+                    thus forcing the model to learn these differences as well. In addition to this, the EGFx flanger
+                    effect was not modeled successfully because there were two modulations present in the spectrogram.
+                    Finally, we did not expect the chorus effect to be modeled at all due to the effect's long delay
+                    and the limitations of LSTM networks.
+                </p>
+            </div>
+        </div>
+
+        <h3 class="">Melda Digital Effects</h3>
+
+        <table class="table table-sm text-center" style="vertical-align: middle;">
+            <tr>
+                <th>Effect</th>
+                <th>Dry</th>
+                <th><span class="target">Wet</span></th>
+                <th><span class="tcn">Extracted LFO</span></th>
+                <th><span class="lstm">LSTM-64</span></th>
+                <th><span class="signaltrain">Baseline</span></th>
+            </tr>
+
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Quasiperiodic LFO<br>Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_3_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_3_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_quasi_lstm_3_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_rand_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Quasiperiodic LFO<br>Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_7_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_7_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_quasi_lstm_7_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_rand_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Quasiperiodic LFO<br>Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_2_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_2_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_quasi_lstm_2_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_rand_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Quasiperiodic LFO<br>Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_10_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_10_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_quasi_lstm_10_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_rand_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Quasiperiodic LFO<br>Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_8_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_8_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_quasi_lstm_8_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_lstm_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_quasi_rand_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Quasiperiodic LFO<br>Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_3_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_3_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_quasi_lstm_3_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_rand_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Quasiperiodic LFO<br>Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_7_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_7_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_quasi_lstm_7_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_rand_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Quasiperiodic LFO<br>Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_2_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_2_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_quasi_lstm_2_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_rand_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Quasiperiodic LFO<br>Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_10_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_10_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_quasi_lstm_10_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_rand_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Quasiperiodic LFO<br>Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_8_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_8_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_quasi_lstm_8_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_lstm_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_quasi_rand_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Irregular LFO<br>Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_3_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_3_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_irregular_lstm_3_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_rand_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Irregular LFO<br>Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_7_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_7_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_irregular_lstm_7_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_rand_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Irregular LFO<br>Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_2_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_2_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_irregular_lstm_2_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_rand_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Irregular LFO<br>Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_10_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_10_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_irregular_lstm_10_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_rand_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Phaser <p class="params">Irregular LFO<br>Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_8_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_8_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_ph_irregular_lstm_8_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_lstm_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_irregular_rand_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Irregular LFO<br>Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_3_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_3_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_irregular_lstm_3_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_rand_3_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Irregular LFO<br>Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_7_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_7_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_irregular_lstm_7_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_rand_7_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Irregular LFO<br>Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_2_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_2_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_irregular_lstm_2_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_rand_2_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Irregular LFO<br>Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_10_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_10_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_irregular_lstm_10_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_rand_10_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">Melda Flanger <p class="params">Irregular LFO<br>Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_ph_8_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_8_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/melda_fl_irregular_lstm_8_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_lstm_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/melda/melda_fl_irregular_rand_8_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+        </table>
+
+        <p class="text-center">Samples were generated randomly from the test dataset and then selected for variety based
+            on the dry sample. No normalization has been applied.</p>
+        <div class="text-center"></div>
+        <hr>
+
+        <h3 class="">EGFx Analog Effects</h3>
+
+        <table class="table table-sm text-center" style="vertical-align: middle;">
+            <tr>
+                <th>Effect</th>
+                <th>Dry</th>
+                <th><span class="target">Wet</span></th>
+                <th><span class="tcn">Extracted LFO</span></th>
+                <th><span class="lstm">LSTM-64</span></th>
+                <th><span class="signaltrain">Baseline</span></th>
+            </tr>
+
+            <tr>
+                <td class="passage">EGFx Phaser <p class="params">Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_ph_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/7_egfx_ph_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_ph_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_ph_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Phaser <p class="params">Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_ph_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/8_egfx_ph_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_ph_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_ph_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Phaser <p class="params">Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_ph_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/11_egfx_ph_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_ph_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_ph_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Phaser <p class="params">Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_ph_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/6_egfx_ph_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_ph_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_ph_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Phaser <p class="params">Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_ph_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/10_egfx_ph_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_ph_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_ph_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="passage">EGFx Flanger <p class="params">Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_fl_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/7_egfx_fl_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_fl_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_fl_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Flanger <p class="params">Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_fl_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/8_egfx_fl_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_fl_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_fl_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Flanger <p class="params">Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_fl_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/11_egfx_fl_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_fl_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_fl_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Flanger <p class="params">Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_fl_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/6_egfx_fl_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_fl_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_fl_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Flanger <p class="params">Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_fl_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/10_egfx_fl_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_fl_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_fl_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="passage">EGFx Chorus <p class="params">Example 1</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_ch_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/7_egfx_ch_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_ch_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/7_egfx_ch_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Chorus <p class="params">Example 2</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_ch_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/8_egfx_ch_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_ch_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/8_egfx_ch_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Chorus <p class="params">Example 3</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_ch_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/11_egfx_ch_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_ch_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/11_egfx_ch_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Chorus <p class="params">Example 4</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_ch_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/6_egfx_ch_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_ch_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/6_egfx_ch_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+            <tr>
+                <td class="passage">EGFx Chorus <p class="params">Example 5</p>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_dry.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_ch_wet.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <img class="img-fluid" src="img/10_egfx_ch_lstm_lfo.svg">
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_ch_lstm_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+                <td>
+                    <audio controls class="player">
+                        <source src="audio/egfx/10_egfx_ch_rand_wet_hat.wav" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </td>
+            </tr>
+
+        </table>
+
+        <p class="text-center">Samples were generated randomly from the test dataset and then selected for variety based
+            on the dry sample. Peak normalization has been applied.</p>
+        <div class="text-center"></div>
+        <hr>
+    </div>
+
+    <!--        <div class="row mb-4">-->
+    <!--            <div class="col-md-5">-->
+    <!--                <p class="mt-3">-->
+    <!--                    We found that both the <span class="lstm">LSTM-32</span> and <span class="tcn">TCN-300-C</span>-->
+    <!--                    models produce perceptually similar results.-->
+    <!--                    Although, these results indicate that while both models are significantly closer to the-->
+    <!--                    reference than <span class="signaltrain">SignalTrain</span>,-->
+    <!--                    listeners will still able to hear subtle differences between the reference.-->
+    <!--                    In comments from participants, and in our own listening, we found that this discrepancy was-->
+    <!--                    often due to a subtle difference in how transients were handled by the neural network-->
+    <!--                    approaches.-->
+    <!--                    It appears that both the <span class="lstm">LSTM-32</span> and <span-->
+    <!--                        class="tcn">TCN-300-C</span> models often are less aggressive in suppressing some transients-->
+    <!--                    when large amount of gain reduction are applied.-->
+    <!--                </p>-->
+    <!--            </div>-->
+    <!--            <div class="col-md-7 text-center">-->
+    <!--                <img class="img-fluid" src="img/mushra.svg">-->
+    <!--            </div>-->
+    <!--        </div>-->
+
+    <!--        <div class="section">-->
+    <!--            <h2>Citation</h2>-->
+    <!--            <hr>-->
+    <!--            <div style="background-color: #e9ecef;">-->
+    <!--                <pre><code>-->
+    <!--                    @inproceedings{steinmetz2021efficient,-->
+    <!--                            title={Efficient neural networks for real-time analog audio effect modeling},-->
+    <!--                            author={Steinmetz, Christian J. and Reiss, Joshua D.},-->
+    <!--                            booktitle={152nd Audio Engineering Society Convention},-->
+    <!--                            year={2022}}-->
+    <!--                </code></pre>-->
+    <!--            </div>-->
+    <!--        </div>-->
+
+    <div class="section" id="plugins">
+        <h2 class="">Plugins</h2>
+        <hr>
+        <div class="row mb-4">
+            <div class="col-md-6 text-center">
+                <img class="img-fluid" src="img/neutone.png">
+            </div>
+            <div class="col-md-6">
+                <p>
+                    We make the trained effect models accessible using the
+                    <a href="https://neutone.space" target=”_blank”>Neutone</a> plugin and SDK.
+                    This enables anyone to experiment with the models via a real-time VST plugin in their preferred
+                    digital audio workstation (DAW) on arbitrary input audio.
+                </p>
+                <p>
+                <h5>Instructions:</h5>
+                <ol>
+                    <li><a href="https://neutone.space/plugin/" target=”_blank”>Download</a> and install the Neutone
+                        plugin.
+                    </li>
+                    <li>Download a model file from the links below.</li>
+                    <li>Open the plugin in your preferred digital audio workstation.</li>
+                    <li>Click on "load your own" at the top of the Neutone plugin interface and select one of the
+                        models you just downloaded.
+                    </li>
+                    <li>
+                        Use the four custom knobs to control the model:
+                        <ul>
+                            <li>Knob A: LFO shape (cosine or triangle) (COMING SOON)</li>
+                            <li>Knob B: LFO rate (0.1 to 5 Hz)</li>
+                            <li>Knob C: LFO depth (0.0 to 2.0)</li>
+                            <li>Knob D: LFO stereo phase offset (0 to 360 degrees) (COMING SOON)</li>
+                        </ul>
+                    </li>
+                </ol>
+                For best results we recommend setting your DAW's sample rate to the native sample rate of the models
+                (44.1 kHz) and using a buffer size of 128 samples or more.
+                </p>
+                <p>
+                <h5>Model Files:</h5>
+                <ul>
+                    <li><a href="neutone/melda_phaser_quasiperiodic.nm">Melda Phaser LSTM-64</a> (trained on quasiperiodic LFO)</li>
+                    <li><a href="neutone/melda_flanger_quasiperiodic.nm">Melda Flanger LSTM-64</a> (trained on quasiperiodic LFO)</li>
+                    <li><a href="neutone/melda_phaser_irregular.nm">Melda Phaser LSTM-64</a> (trained on irregular LFO)</li>
+                    <li><a href="neutone/melda_flanger_irregular.nm">Melda Flanger LSTM-64</a> (trained on irregular LFO)</li>
+                    <li><a href="neutone/egfx_phaser.nm">EGFx Phaser LSTM-64</a></li>
+                    <li><a href="neutone/egfx_flanger.nm">EGFx Flanger LSTM-64</a> (was not modeled successfully)</li>
+                    <li><a href="neutone/egfx_chorus.nm">EGFx Chorus LSTM-64</a> (was not modeled successfully)</li>
+                </ul>
+                </p>
             </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="section mt-5 mb-5">
-            <div class="abstract">
-                <h2>Abstract</h1>
-                    <hr>
-                    <p>
-                        Deep learning approaches have demonstrated success in modeling analog audio effects.
-                        Nevertheless, challenges remain in modeling more complex effects that involve time-varying
-                        nonlinear
-                        elements, such as dynamic range compressors.
-                        Previous approaches for modeling analog compressors either ignore the device parameters, do not
-                        attain sufficient accuracy, or otherwise require large noncausal models prohibiting real-time
-                        operation.
-                        In this work, we propose a modification to temporal convolutional networks (TCNs) that enables
-                        greater efficiency without sacrificing performance.
-                        By utilizing very sparse convolutional kernels through rapidly growing dilations, our proposed
-                        model
-                        attains a significant receptive field using fewer layers, reducing computation.
-                        Through a detailed evaluation we demonstrate our efficient and causal approach achieves
-                        state-of-the-art performance in modeling the analog LA-2A compressor, is capable of real-time
-                        operation on CPU, and only requires 10 minutes of training data.
-                    </p>
-            </div>
-        </div>
+    <hr>
+    <footer>
+        <!--            <p>*Accepted to the 152nd AES Convention</p>-->
+        <p>Send feedback and questions to <a href="https://christhetr.ee" target=”_blank”>Christopher
+            Mitcheltree</a>.</p>
+        <p>&nbsp;</p>
+    </footer>
+</div>
 
-        <div class="section">
-            <h2 class="">Results</h2>
-            <hr>
-            <div class="row mb-4">
-                <div class="col-md-6 text-center">
-                    <img class="img-fluid" src="img/tcn-arch.svg">
-                </div>
-                <div class="col-md-6">
-                    <p>
-                        Here we compare the test performance of three models.
-                        All examples here come from the test set of the <a
-                            href="https://zenodo.org/record/3824876">SignalTrain LA2A Dataset</a>,
-                        which contains audio that was not seen during training.
-                        The <span class="tcn">TCN-300-C</span> model featured is causal, was trained using 1% of the
-                        SignalTrain dataset, and is capable of running in real-time on CPU.
-                        Results from a perceptual evaluation (MUSHRA-style) using these audio samples are shown below.
-                    </p>
-                </div>
-            </div>
-
-            <table class="table table-sm text-center" style="vertical-align: middle;">
-                <tr>
-                    <th class="passage">Example</th>
-                    <th>Input</th>
-                    <th> <span class="target">Reference</span> <br> <span class="detail">(Analog LA-2A)</span></th>
-                    <th> <span class="signaltrain">SignalTrain</span> <br> <span class="detail">(Hawley et al.)</span>
-                    </th>
-                    <th> <span class="tcn">TCN-300-C</span> <br> <span class="detail">(Ours)</span> </th>
-                    <th> <span class="lstm">LSTM-32</span> <br> <span class="detail">(Ours)</span></th>
-                </tr>
-                <tr>
-                    <td class="passage">Song <p class="params">Limit: 1 Peak: 80</p>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/song-1-80-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/song-1-80-target.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/song-1-80-signaltrain.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/song-1-80-tcn-300-c.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/song-1-80-lstm.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="passage">PnoA <p class="params">Limit: 0 Peak: 65</p>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoA-0-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoA-0-65-target.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoA-0-65-signaltrain.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoA-0-65-tcn-300-c.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoA-0-65-lstm.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="passage">PnoB <p class="params">Limit: 1 Peak: 80</p>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoB-1-80-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoB-1-80-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoB-1-80-signaltrain.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoB-1-80-tcn-300-c.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/pianoB-1-80-lstm.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="passage">EGtr <p class="params">Limit: 0 Peak: 65</p>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/egtr-0-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/egtr-0-65-target.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/egtr-0-65-signaltrain.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/egtr-0-65-tcn-300-c.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/egtr-0-65-lstm.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="passage">AcGtr <br>
-                        <p class="params">Limit: 1 Peak: 65</p>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                    <td>
-                        <audio controls class="player">
-                            <source src="audio/mushra/acgtr-1-65-input.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </td>
-                </tr>
-            </table>
-            <p class="text-center">No normalization has been applied to the listening samples, but they have been
-                encoded to VBR mp3.</p>
-            <div class="text-center">
-
-            </div>
-            <hr>
-            <div class="row mb-4">
-                <div class="col-md-5">
-                    <p class="mt-3">
-                        We found that both the <span class="lstm">LSTM-32</span> and <span class="tcn">TCN-300-C</span>
-                        models produce perceptually similar results.
-                        Although, these results indicate that while both models are significantly closer to the
-                        reference than <span class="signaltrain">SignalTrain</span>,
-                        listeners will still able to hear subtle differences between the reference.
-                        In comments from participants, and in our own listening, we found that this discrepancy was
-                        often due to a subtle difference in how transients were handled by the neural network
-                        approaches.
-                        It appears that both the <span class="lstm">LSTM-32</span> and <span
-                            class="tcn">TCN-300-C</span> models often are less aggressive in suppressing some transients
-                        when large amount of gain reduction are applied.
-                    </p>
-                </div>
-                <div class="col-md-7 text-center">
-                    <img class="img-fluid" src="img/mushra.svg">
-                </div>
-            </div>
-
-            <div class="section">
-                <h2 class="mt-5">Try it out</h2>
-                <hr>
-                <div class="row">
-                    <div class="col-md-6 text-center">
-                        <img style="margin-bottom: 20px" class="img-fluid" src="img/la-2a-no-branding.jpg">
-                        <label for="source">Choose a source:</label>
-                        <select name="source" id="source">
-                            <option value="fvox">Female Vocal</option>
-                            <option value="overhead">Drums</option>
-                            <option value="bass">Bass</option>
-                            <option value="dirty-egtr">Electric Guitar (distorted)</option>
-                            <option value="agtr">Acoustic Guitar</option>
-                            <option value="sax">Saxophone</option>
-                            <option value="SongA">Song A</option>
-                            <option value="SongB">Song B</option>
-
-                        </select>
-                    </div>
-                    <div class="col-md-4 text-center" style="display: inline-block;">
-                        <audio id="input" loop class="player">
-                            <source id="input_source" src="audio/demo/fvox.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                        <audio id="compressor" loop class="player">
-                            <source id="compressor_source" src="audio/demo/fvox-1-80-tcn-300-c.mp3" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                        <button id="bypass">On</button>
-                        <button id="play">Stopped</button>
-                    </div>
-
-                </div>
-                <div class="row">
-                    <div class="col-md-6 text-center">
-                        <div class="slidecontainer">
-                            <div style="margin-top: 20px;">
-                                <p>Limit: <span id="limit_val"></span></p>
-                                <input type="range" min="0" max="1" value="1" class="slider" id="limit">
-                            </div>
-                            <div style="margin-top: 20px;">
-                                <p>Peak Reduction: <span id="peak_reduction_val"></span></p>
-                                <input type="range" min="0" max="100" value="80" step=10 class="slider"
-                                    id="peak_reduction">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <p>
-                            In this demo you can interact with some pre-processed outputs in order to get a feel for the
-                            quality of the models.
-                            First select a source from the drop-down menu above.
-                            Then you can toggle between the input (unprocessed) and the output of the model (TCN-300-C
-                            with 1% of the training data).
-                            You will note that as your increase the peak reduction, the output level is reduced
-                            significantly.
-                        </p>
-                        <p>
-                            <i>Note: This interface is a bit buggy.</i>
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-
-
-            <div class="section">
-                <h2>Citation</h2>
-                <hr>
-                <div style="background-color: #e9ecef;">
-                    <pre>
-                <code>
-    @inproceedings{steinmetz2021efficient,
-            title={Efficient neural networks for real-time analog audio effect modeling},
-            author={Steinmetz, Christian J. and Reiss, Joshua D.},
-            booktitle={152nd Audio Engineering Society Convention},
-            year={2022}}</code>
-                </pre>
-                </div>
-            </div>
-
-            <hr>
-            <footer>
-                <p>*Accepted to the 152nd AES Convention</p>
-                <p>Send feedback and questions to <a href="http://christiansteinmetz.com">Christian Steinmetz</a>.</p>
-            </footer>
-        </div>
-
-        <!-- Bootstrap core JavaScript -->
-        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
-            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
-            crossorigin="anonymous"></script>
-        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
-            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
-            crossorigin="anonymous"></script>
-        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"
-            integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
-            crossorigin="anonymous"></script>
-        <script src="js/slider.js"></script>
+<!-- Bootstrap core JavaScript -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"
+        integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+        crossorigin="anonymous"></script>
+<script src="js/slider.js"></script>
 </body>
 
 </html>

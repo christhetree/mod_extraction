@@ -12,6 +12,7 @@ from torch.optim import Optimizer
 from lfo_tcn.modulations import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
 from lfo_tcn.losses import get_loss_func_by_name
 from lfo_tcn.models import HiddenStateModel
+from lfo_tcn.paths import OUT_DIR
 from lfo_tcn.util import linear_interpolate_last_dim
 
 logging.basicConfig()
@@ -513,7 +514,21 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         if fx_params is not None:
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
-        if wet.size(0) < 10:
+        if wet.size(0) < 15:
+            # prefix = "melda_ph_irregular_lstm"
+            # prefix = "melda_fl_irregular_lstm"
+            # prefix = "melda_ph_irregular_rand"
+            # prefix = "melda_ph_quasi_lstm"
+            # prefix = "melda_ph_quasi_rand"
+            # prefix = "melda_fl_quasi_lstm"
+            # prefix = "melda_fl_quasi_rand"
+
+            # prefix = "egfx_ph_lstm"
+            # prefix = "egfx_fl_lstm"
+            # prefix = "egfx_ch_lstm"
+            prefix = "egfx_ph_rand"
+            # prefix = "egfx_fl_rand"
+            # prefix = "egfx_ch_rand"
             from matplotlib import pyplot as plt
             from lfo_tcn.plotting import plot_spectrogram
             for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
@@ -523,12 +538,29 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
                 if "mod_sig" in data_dict:
                     m = data_dict["mod_sig"][idx]
                     plt.plot(m)
-                plt.plot(m_h)
-                plt.title(f"mod_sig_{idx}")
+                plt.plot(m_h, c='black', linewidth=4.0)
+                ax = plt.gca()
+                ax.spines[['right', 'top']].set_visible(False)
+
+                # Hide X and Y axes label marks
+                ax.xaxis.set_tick_params(labelbottom=False)
+                # ax.yaxis.set_tick_params(labelleft=False)
+
+                # Hide X and Y axes tick marks
+                ax.set_xticks([])
+                ax.set_yticks([0.0, 0.5, 1.0])
+                plt.yticks(fontsize=18)
+                # plt.ylim([0, 1])
+
+                # ax.set_aspect('equal', adjustable='box')
+                # plt.axis('off')
+                # plt.title(f"mod_sig_{idx}")
+                plt.tight_layout()
+                plt.savefig(os.path.join(OUT_DIR, f"{idx}_{prefix}_lfo.svg"))
                 plt.show()
-                plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
-                plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
-                plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"wet_hat_{idx}", sr=self.sr)
+                plot_spectrogram(d, title=f"dry_{idx}", save_name=f"{idx}_{prefix}_dry", sr=self.sr)
+                plot_spectrogram(w, title=f"wet_{idx}", save_name=f"{idx}_{prefix}_wet", sr=self.sr)
+                plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"{idx}_{prefix}_wet_hat", sr=self.sr)
             exit()
 
         return batch_loss, data_dict, fx_params

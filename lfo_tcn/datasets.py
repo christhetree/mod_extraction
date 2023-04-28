@@ -349,12 +349,12 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
         assert dry_chunk.shape == wet_chunk.shape
 
         # TODO(cm)
-        # dry = dry_chunk.T.numpy()
-        # wet = wet_chunk.T.numpy()
-        # dry = pyln.normalize.peak(dry, -1.0)
-        # wet = pyln.normalize.peak(wet, -1.0)
-        # dry_chunk = tr.from_numpy(dry.T)
-        # wet_chunk = tr.from_numpy(wet.T)
+        dry = dry_chunk.T.numpy()
+        wet = wet_chunk.T.numpy()
+        dry = pyln.normalize.peak(dry, -1.0)
+        wet = pyln.normalize.peak(wet, -1.0)
+        dry_chunk = tr.from_numpy(dry.T)
+        wet_chunk = tr.from_numpy(wet.T)
 
         return dry_chunk, wet_chunk
 

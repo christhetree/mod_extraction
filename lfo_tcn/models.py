@@ -91,6 +91,7 @@ class Spectral2DCNN(nn.Module):
     def __init__(self,
                  in_ch: int = 1,
                  n_samples: int = 88200,
+                 # n_samples: int = 176400,
                  sr: float = 44100,
                  n_fft: int = 1024,
                  hop_len: int = 256,

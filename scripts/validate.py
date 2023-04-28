@@ -23,10 +23,7 @@ if __name__ == "__main__":
     # config_name = "val_lfo_dry_wet.yml"
     # config_name = "val_lfo_interwoven_all.yml"
 
-    # config_name = "val_em_dry_wet.yml"
-
-    # config_name = "a3_val_lfo_phaser.yml"
-    config_name = "a3_val_em_phaser.yml"
+    config_name = "val_em_dry_wet.yml"
 
     config_path = os.path.join(CONFIGS_DIR, config_name)
     cli = CustomLightningCLI(args=["validate", "--config", config_path],

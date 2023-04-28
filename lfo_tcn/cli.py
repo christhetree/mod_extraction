@@ -130,7 +130,7 @@ class CustomLightningCLI(LightningCLI):
             config.trainer.devices = None
             config.trainer.strategy = None
             config.data.init_args.batch_size = config.custom.cpu_batch_size
-            # config.data.init_args.num_workers = 0
+            config.data.init_args.num_workers = 0
 
             for link_args in self.cli_config["cpu_link_arguments_if_possible"]:
                 src = link_args["src"]
