@@ -34,9 +34,9 @@
             <div>
                 <a class="btn btn-outline-dark" href="docs/dafx_2023_lfo_v2.pdf" target=”_blank” type="button">
                     <i class="bi bi-newspaper"></i> Paper</a>
-                <!--                <a class="btn btn-outline-dark" href="https://github.com/christhetree/mod_extraction" target=”_blank”-->
-                <!--                   type="button">-->
-                <!--                    <i class="bi bi-code-slash"></i> Code</a>-->
+                <a class="btn btn-outline-dark" href="https://github.com/christhetree/mod_extraction/" target=”_blank”
+                   type="button">
+                    <i class="bi bi-code-slash"></i> Code</a>
                 <a class="btn btn-outline-dark" href="#plugins" type="button">
                     <i class="bi bi-box"></i> Plugins</a>
                 <!--                    <a class="btn btn-outline-dark" href="https://youtu.be/GIB2rkz0UUw" type="button"> <i-->
@@ -1348,10 +1348,10 @@
                 <p>
                     We make the trained effect models accessible using the
                     <a href="https://neutone.space" target=”_blank”>Neutone</a> plugin and SDK.
-                    This enables anyone to experiment with the models via a real-time VST plugin in their preferred
-                    digital audio workstation (DAW) on arbitrary input audio.
+                    This enables most users to experiment with the models via a real-time VST plugin in their preferred
+                    digital audio workstation (DAW) on arbitrary input audio. Older and / or slower CPUs may struggle
+                    to run the models in real time.
                 </p>
-                <p>
                 <h5>Instructions:</h5>
                 <ol>
                     <li><a href="https://neutone.space/plugin/" target=”_blank”>Download</a> and install the Neutone
@@ -1365,17 +1365,18 @@
                     <li>
                         Use the four custom knobs to control the model:
                         <ul>
-                            <li>Knob A: LFO shape (cosine or triangle) (COMING SOON)</li>
-                            <li>Knob B: LFO rate (0.1 to 5 Hz)</li>
-                            <li>Knob C: LFO depth (0.0 to 2.0)</li>
-                            <li>Knob D: LFO stereo phase offset (0 to 360 degrees) (COMING SOON)</li>
+                            <li>Knob A: LFO rate (0.1 to 5 Hz)</li>
+                            <li>Knob B: LFO depth (0.0 to 1.5)</li>
+                            <li>Knob C: LFO stereo phase offset (0 to 360 degrees)</li>
+                            <li>Knob D: Unused</li>
                         </ul>
                     </li>
                 </ol>
-                For best results we recommend setting your DAW's sample rate to the native sample rate of the models
-                (44.1 kHz) and using a buffer size of 128 samples or more.
-                </p>
                 <p>
+                For best results we recommend setting the input gain knob to -6 dB to avoid clipping, setting your
+                DAW's sample rate to the native sample rate of the models (44.1 kHz), and using a buffer size of 128
+                samples or more.
+                </p>
                 <h5>Model Files:</h5>
                 <ul>
                     <li><a href="neutone/melda_phaser_quasiperiodic.nm" download="melda_phaser_quasiperiodic.nm">Melda Phaser LSTM-64</a> (trained on quasiperiodic LFO)</li>
@@ -1386,7 +1387,6 @@
                     <li><a href="neutone/egfx_flanger.nm" download="egfx_flanger.nm">EGFx Flanger LSTM-64</a> (was not modeled successfully)</li>
                     <li><a href="neutone/egfx_chorus.nm" download="egfx_chorus.nm">EGFx Chorus LSTM-64</a> (was not modeled successfully)</li>
                 </ul>
-                </p>
             </div>
         </div>
     </div>
