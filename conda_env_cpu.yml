@@ -8,6 +8,7 @@ dependencies:
     - auraloss
     - librosa
     - matplotlib
+    - neutone-sdk
     - pedalboard
     - pip-chill
     - pytorch-lightning[extra]

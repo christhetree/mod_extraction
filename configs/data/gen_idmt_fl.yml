@@ -1,32 +1,13 @@
 seed_everything: 44
-#seed_everything: 45
-
-custom:
-  project_name: mod_extraction
-  model_name: spectral_2dcnn
-  dataset_name: gen_idmt_fl
-#  dataset_name: gen_idmt_ch
-  cpu_batch_size: 8
-
-trainer:
-  accelerator: cpu
-  benchmark: false
-  devices: [1]
-  max_epochs: 1
-  num_sanity_val_steps: 0
 
 data:
   class_path: mod_extraction.data_modules.FlangerCPUDataModule
   init_args:
     batch_size: 1000
-    num_workers: 8
-    use_debug_mode: false
     train_dir: ../data/idmt_4/train
     val_dir: ../data/idmt_4/val
     train_num_examples_per_epoch: 40000
-#    train_num_examples_per_epoch: 200
     val_num_examples_per_epoch: 10000
-#    val_num_examples_per_epoch: 100
     n_samples: 88200
     sr: 44100
     ext: wav
@@ -52,14 +33,12 @@ data:
         exp: 1.0
       flanger:
         max_min_delay_ms: 1.0
-#        max_min_delay_ms: 30.0
         max_lfo_delay_ms: 10.0
         feedback:
           min: 0.0
           max: 0.7
         min_delay_width:
           min: 0.0
-#          min: 0.367
           max: 1.0
         width:
           min: 0.25
@@ -70,19 +49,3 @@ data:
         mix:
           min: 0.25
           max: 1.0
-
-model:
-  class_path: mod_extraction.lightning.LFOExtraction
-  init_args:
-    model: ../configs/models/spectral_2dcnn.yml
-#    sub_batch_size: 32
-    use_dry: true
-    model_smooth_n_frames: 0
-    should_stretch: false
-    loss_dict:
-      l1: 1.0
-      fdl1: 5.0
-      sdl1: 10.0
-      mse: 0.0
-
-optimizer: ../configs/opt/adam_w.yml

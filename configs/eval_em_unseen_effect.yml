@@ -1,0 +1,104 @@
+seed_everything: 47
+
+ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_ph_quasi__epoch_241_step_803440.ckpt
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_fl_quasi__epoch_207_step_690560.ckpt
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_ph_irregular__epoch_199_step_664000.ckpt
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_fl_irregular__epoch_202_step_673960.ckpt
+
+#ckpt_path: ../models/rand_phase_rate_75hz_25_cos__melda_ph_irregular__epoch_26_step_91800.ckpt
+#ckpt_path: ../models/rand_phase_rate_75hz_25_cos__melda_fl_irregular__epoch_91_step_312800.ckpt
+#ckpt_path: ../models/rand_phase_rate_triangle__melda_ph_quasi__epoch_88_step_302600.ckpt
+#ckpt_path: ../models/rand_phase_rate_triangle__melda_fl_quasi__epoch_91_step_312800.ckpt
+
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_ph_2_peak__epoch_35_step_95616.ckpt
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_fl_2_peak__epoch_20_step_55776.ckpt
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_ch_2_peak__epoch_40_step_108896.ckpt
+
+#ckpt_path: ../models/rand_phase_rate_2hz_triangle__egfx_ph_2_peak__epoch_70_step_193120.ckpt
+#ckpt_path: ../models/rand_phase_rate_2hz_triangle__egfx_fl_2_peak__epoch_98_step_269280.ckpt
+#ckpt_path: ../models/rand_phase_rate_2hz_triangle__egfx_ch_2_peak__epoch_70_step_193120.ckpt
+
+custom:
+  project_name: mod_extraction
+  model_name: eval_model
+  dataset_name: eval_dataset
+  cpu_batch_size: 12
+
+trainer:
+  accelerator: gpu
+  devices: [0]
+
+data:
+  class_path: mod_extraction.data_modules.RandomAudioChunkDryWetDataModule
+  init_args:
+    batch_size: 250
+    num_workers: 8
+    use_debug_mode: false
+    dry_train_dir: ../data/melda_ph_quasi/train/dry
+    dry_val_dir: ../data/melda_ph_quasi/test/dry
+#    dry_train_dir: ../data/melda_fl_quasi/train/dry
+#    dry_val_dir: ../data/melda_fl_quasi/test/dry
+#    dry_train_dir: ../data/melda_fl_irregular/train/dry
+#    dry_val_dir: ../data/melda_fl_irregular/test/dry
+#    dry_train_dir: ../data/melda_ph_irregular/train/dry
+#    dry_val_dir: ../data/melda_ph_irregular/test/dry
+#    dry_train_dir: ../data/egfx_clean_44100/train
+#    dry_val_dir: ../data/egfx_clean_44100/test
+    wet_train_dir: ../data/melda_ph_quasi/train/wet
+    wet_val_dir: ../data/melda_ph_quasi/test/wet
+#    wet_train_dir: ../data/melda_fl_quasi/train/wet
+#    wet_val_dir: ../data/melda_fl_quasi/test/wet
+#    wet_train_dir: ../data/melda_fl_irregular/train/wet
+#    wet_val_dir: ../data/melda_fl_irregular/test/wet
+#    wet_train_dir: ../data/melda_ph_irregular/train/wet
+#    wet_val_dir: ../data/melda_ph_irregular/test/wet
+#    wet_train_dir: ../data/egfx_phaser_44100/train
+#    wet_val_dir: ../data/egfx_phaser_44100/test
+#    wet_train_dir: ../data/egfx_flanger_44100/train
+#    wet_val_dir: ../data/egfx_flanger_44100/test
+#    wet_train_dir: ../data/egfx_chorus_44100/train
+#    wet_val_dir: ../data/egfx_chorus_44100/test
+    train_num_examples_per_epoch: 0
+    val_num_examples_per_epoch: 1000
+    n_samples: 88200
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 1e-4
+#    silence_threshold_energy: 1e-6
+    n_retries: 1000
+#    n_retries: 10
+    check_dataset: false
+    end_buffer_n_samples: 0
+
+model:
+  class_path: mod_extraction.lightning.TBPTTLFOEffectModeling
+  init_args:
+    warmup_n_samples: 1024
+    step_n_samples: 1024
+    effect_model:
+      class_path: mod_extraction.models.LSTMEffectModel
+      init_args:
+        in_ch: 1
+        out_ch: 1
+        n_hidden: 64
+        latent_dim: 1
+    lfo_model: ../configs/models/spectral_2dcnn.yml
+#    lfo_model: null
+    lfo_model_weights_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.pt
+    freeze_lfo_model: true
+    use_dry: true
+    model_smooth_n_frames: 8
+#    model_smooth_n_frames: 0
+    should_stretch: true
+#    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 0
+    discard_invalid_lfos: true
+#    discard_invalid_lfos: false
+    loss_dict:
+      l1: 1.0
+      esr: 0.0
+      dc: 0.0
+
+optimizer: ../configs/opt/adam_w.yml

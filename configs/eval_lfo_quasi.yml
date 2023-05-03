@@ -2,11 +2,10 @@ seed_everything: 42
 ckpt_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.ckpt
 
 custom:
-  project_name: lfo_tcn
+  project_name: mod_extraction
   model_name: eval_model
   dataset_name: eval_dataset
-#  cpu_batch_size: 8
-  cpu_batch_size: 125
+  cpu_batch_size: 8
   cpu_val_num_examples_per_epoch: 8
   use_wandb: false
 
@@ -16,7 +15,7 @@ trainer:
   num_sanity_val_steps: 0
 
 data:
-  class_path: lfo_tcn.data_modules.FlangerCPUDataModule
+  class_path: mod_extraction.data_modules.FlangerCPUDataModule
   init_args:
     batch_size: 125
     num_workers: 8
@@ -76,15 +75,12 @@ data:
           max: 1.0
 
 model:
-  class_path: lfo_tcn.lightning.LFOExtraction
+  class_path: mod_extraction.lightning.LFOExtraction
   init_args:
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
     model_smooth_n_frames: 4
-#    should_stretch: true
     should_stretch: false
-    max_n_corners: 16
-    stretch_smooth_n_frames: 0
     loss_dict:
       l1: 1.0
       fdl1: 5.0

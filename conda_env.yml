@@ -1,4 +1,4 @@
-name: lfotcn
+name: mod_ex
 channels:
   - defaults
   - pytorch
@@ -14,6 +14,7 @@ dependencies:
     - auraloss
     - librosa
     - matplotlib
+    - neutone-sdk
     - nvitop
     - pedalboard
     - pip-chill

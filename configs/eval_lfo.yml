@@ -20,12 +20,8 @@ data:
     batch_size: 125
     num_workers: 8
     use_debug_mode: false
-    train_dir: ../data/unseen/mdb_gtr
-    val_dir: ../data/unseen/mdb_gtr
-#    val_dir: ../data/unseen/mdb_bass
-#    val_dir: ../data/unseen/mdb_keys
-#    val_dir: ../data/unseen/idmt_drums
-#    val_dir: ../data/unseen/vocalset
+    train_dir: ../data/idmt_4/train
+    val_dir: ../data/idmt_4/val
     train_num_examples_per_epoch: 0
     val_num_examples_per_epoch: 1000
     n_samples: 88200
@@ -33,7 +29,7 @@ data:
     ext: wav
     silence_fraction_allowed: 0.1
     silence_threshold_energy: 1e-4
-    n_retries: 1000
+    n_retries: 10
     check_dataset: false
     fx_config:
       pedalboard_phaser:
@@ -65,12 +61,8 @@ data:
 #    batch_size: 125
 #    num_workers: 8
 #    use_debug_mode: false
-#    train_dir: ../data/unseen/mdb_gtr
-#    val_dir: ../data/unseen/mdb_gtr
-##    val_dir: ../data/unseen/mdb_bass
-##    val_dir: ../data/unseen/mdb_keys
-##    val_dir: ../data/unseen/idmt_drums
-##    val_dir: ../data/unseen/vocalset
+#    train_dir: ../data/idmt_4/train
+#    val_dir: ../data/idmt_4/val
 #    train_num_examples_per_epoch: 0
 #    val_num_examples_per_epoch: 1000
 #    n_samples: 88200
@@ -78,7 +70,7 @@ data:
 #    ext: wav
 #    silence_fraction_allowed: 0.1
 #    silence_threshold_energy: 1e-4
-#    n_retries: 1000
+#    n_retries: 10
 #    check_dataset: false
 #    fx_config:
 #      mod_sig:

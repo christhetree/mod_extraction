@@ -1,0 +1,165 @@
+# pytorch_lightning==1.9.4
+seed_everything: 44
+trainer:
+  logger:
+    class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      save_dir: lightning_logs
+      version: null
+      log_graph: false
+      default_hp_metric: true
+      prefix: ''
+      sub_dir: null
+  enable_checkpointing: true
+  callbacks: null
+  default_root_dir: null
+  gradient_clip_val: null
+  gradient_clip_algorithm: null
+  num_nodes: 1
+  num_processes: null
+  devices: 1
+  gpus: null
+  auto_select_gpus: null
+  tpu_cores: null
+  ipus: null
+  enable_progress_bar: true
+  overfit_batches: 0.0
+  track_grad_norm: -1
+  check_val_every_n_epoch: 1
+  fast_dev_run: false
+  accumulate_grad_batches: null
+  max_epochs: 400
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  val_check_interval: null
+  log_every_n_steps: 1
+  accelerator: gpu
+  strategy: null
+  sync_batchnorm: false
+  precision: 32
+  enable_model_summary: true
+  num_sanity_val_steps: 2
+  resume_from_checkpoint: null
+  profiler: null
+  benchmark: false
+  deterministic: null
+  reload_dataloaders_every_n_epochs: 0
+  auto_lr_find: false
+  replace_sampler_ddp: true
+  detect_anomaly: false
+  auto_scale_batch_size: false
+  plugins: null
+  amp_backend: null
+  amp_level: null
+  move_metrics_to_cpu: false
+  multiple_trainloader_mode: max_size_cycle
+  inference_mode: true
+custom:
+  project_name: mod_extraction
+  model_name: rand_phase_rate_75hz_25_triangle
+  dataset_name: melda_fl_irregular
+  use_wandb: true
+  cpu_batch_size: 8
+  cpu_train_num_examples_per_epoch: 10
+  cpu_val_num_examples_per_epoch: 5
+ckpt_path: null
+data:
+  class_path: mod_extraction.data_modules.RandomAudioChunkDryWetDataModule
+  init_args:
+    batch_size: 100
+    dry_train_dir: ../data/melda_fl_irregular/train/dry
+    dry_val_dir: ../data/melda_fl_irregular/val/dry
+    wet_train_dir: ../data/melda_fl_irregular/train/wet
+    wet_val_dir: ../data/melda_fl_irregular/val/wet
+    train_num_examples_per_epoch: 4000
+    val_num_examples_per_epoch: 1000
+    n_samples: 88200
+    sr: 44100.0
+    ext: wav
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 0.0001
+    n_retries: 1000
+    num_workers: 8
+    use_debug_mode: false
+    check_dataset: false
+    end_buffer_n_samples: 0
+model:
+  class_path: mod_extraction.lightning.TBPTTLFOEffectModeling
+  init_args:
+    warmup_n_samples: 1024
+    step_n_samples: 1024
+    effect_model:
+      class_path: mod_extraction.models.LSTMEffectModel
+      init_args:
+        in_ch: 1
+        out_ch: 1
+        n_hidden: 64
+        latent_dim: 1
+    lfo_model:
+      class_path: mod_extraction.models.Spectral2DCNN
+      init_args:
+        in_ch: 2
+        n_samples: 88200
+        sr: 44100.0
+        n_fft: 1024
+        hop_len: 256
+        n_mels: 256
+        kernel_size:
+        - 5
+        - 13
+        out_channels:
+        - 64
+        - 64
+        - 64
+        - 64
+        - 64
+        - 64
+        bin_dilations: null
+        temp_dilations:
+        - 1
+        - 1
+        - 2
+        - 4
+        - 8
+        - 16
+        pool_size:
+        - 2
+        - 1
+        latent_dim: 1
+        freq_mask_amount: 0.0
+        time_mask_amount: 0.0
+        use_ln: true
+        eps: 1.0e-07
+    lfo_model_weights_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.pt
+    freeze_lfo_model: true
+    param_model: null
+    sr: 44100.0
+    use_dry: true
+    model_smooth_n_frames: 0
+    should_stretch: false
+    max_n_corners: 16
+    stretch_smooth_n_frames: 0
+    discard_invalid_lfos: false
+    loss_dict:
+      l1: 1.0
+      esr: 0.0
+      dc: 0.0
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.0001
+    betas:
+    - 0.8
+    - 0.99
+    eps: 1.0e-08
+    weight_decay: 0.01
+    amsgrad: false
+    maximize: false
+    foreach: null
+    capturable: false

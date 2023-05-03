@@ -1,4 +1,4 @@
-class_path: lfo_tcn.models.SpectralTCN
+class_path: mod_extraction.models.SpectralTCN
 init_args:
   n_fft: 1024
   hop_len: 256

@@ -1,18 +1,10 @@
 seed_everything: 43
 
 custom:
-  project_name: lfo_tcn
-#  model_name: lfo_2dcnn_io_no_sa
-#  model_name: lfo_2dcnn_io_sa_25_25
-#  model_name: lfo_2dcnn_io_sa_25_25_no_ch_ln
-  model_name: lfo_2dcnn_only_wet_sa_25_25
-#  dataset_name: ph_fl_ch_all_2__idmt_4
-#  dataset_name: ph_fl_ch_all_2__idmt_4_egfx_clean_44100
-#  dataset_name: ph_fl_ch_all_2_quasi__idmt_4
-  dataset_name: ph_fl_ch_all_2_both__idmt_4
+  project_name: mod_extraction
+  model_name: lfo_2dcnn_io_sa_25_25_no_ch_ln
+  dataset_name: interwoven_idmt_all
   cpu_batch_size: 8
-  cpu_train_num_examples_per_epoch: 16
-  cpu_val_num_examples_per_epoch: 8
 
 trainer:
   accelerator: gpu
@@ -21,17 +13,13 @@ trainer:
   max_epochs: 400
   num_sanity_val_steps: 2
 
-#data: ../configs/data/interwoven_idmt_all_2.yml
-#data: ../configs/data/interwoven_all_2.yml
-#data: ../configs/data/interwoven_idmt_all_2_quasi.yml
-data: ../configs/data/interwoven_idmt_all_2_both.yml
+data: ../configs/data/interwoven_idmt_all.yml
 
 model:
-  class_path: lfo_tcn.lightning.LFOExtraction
+  class_path: mod_extraction.lightning.LFOExtraction
   init_args:
     model: ../configs/models/spectral_2dcnn.yml
     use_dry: true
-#    use_dry: false
     model_smooth_n_frames: 0
     should_stretch: false
     loss_dict:
