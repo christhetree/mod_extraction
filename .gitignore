@@ -562,7 +562,6 @@ cython_debug/
 .idea/
 /data
 /out
-/models
 lightning_logs/
 wandb_logs/
 scratch.py
