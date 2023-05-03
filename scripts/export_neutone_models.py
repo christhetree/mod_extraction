@@ -9,8 +9,8 @@ from neutone_sdk import WaveformToWaveformBase, NeutoneParameter
 from neutone_sdk.utils import save_neutone_model
 from torch import Tensor
 
-from lfo_tcn.models import LSTMEffectModel
-from lfo_tcn.paths import OUT_DIR, MODELS_DIR
+from mod_extraction.models import LSTMEffectModel
+from mod_extraction.paths import OUT_DIR, MODELS_DIR
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
