@@ -20,12 +20,12 @@ data:
     batch_size: 125
     num_workers: 8
     use_debug_mode: false
-    train_dir: ../data/unseen/mdb_gtr
-    val_dir: ../data/unseen/mdb_gtr
-#    val_dir: ../data/unseen/mdb_bass
-#    val_dir: ../data/unseen/mdb_keys
-#    val_dir: ../data/unseen/idmt_drums
-#    val_dir: ../data/unseen/vocalset
+    train_dir: ../data/unseen_audio/mdb_gtr
+    val_dir: ../data/unseen_audio/mdb_gtr
+#    val_dir: ../data/unseen_audio/mdb_bass
+#    val_dir: ../data/unseen_audio/mdb_keys
+#    val_dir: ../data/unseen_audio/idmt_drums
+#    val_dir: ../data/unseen_audio/vocalset
     train_num_examples_per_epoch: 0
     val_num_examples_per_epoch: 1000
     n_samples: 88200
@@ -65,12 +65,12 @@ data:
 #    batch_size: 125
 #    num_workers: 8
 #    use_debug_mode: false
-#    train_dir: ../data/unseen/mdb_gtr
-#    val_dir: ../data/unseen/mdb_gtr
-##    val_dir: ../data/unseen/mdb_bass
-##    val_dir: ../data/unseen/mdb_keys
-##    val_dir: ../data/unseen/idmt_drums
-##    val_dir: ../data/unseen/vocalset
+#    train_dir: ../data/unseen_audio/mdb_gtr
+#    val_dir: ../data/unseen_audio/mdb_gtr
+##    val_dir: ../data/unseen_audio/mdb_bass
+##    val_dir: ../data/unseen_audio/mdb_keys
+##    val_dir: ../data/unseen_audio/idmt_drums
+##    val_dir: ../data/unseen_audio/vocalset
 #    train_num_examples_per_epoch: 0
 #    val_num_examples_per_epoch: 1000
 #    n_samples: 88200

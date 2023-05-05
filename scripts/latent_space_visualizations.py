@@ -2,7 +2,6 @@ import logging
 import os
 
 import torch as tr
-import umap
 from matplotlib import pyplot as plt
 
 logging.basicConfig()

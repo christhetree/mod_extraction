@@ -3,8 +3,8 @@ import os
 
 import torch as tr
 
-from lfo_tcn.cli import CustomLightningCLI
-from lfo_tcn.paths import MODELS_DIR
+from mod_extraction.cli import CustomLightningCLI
+from mod_extraction.paths import MODELS_DIR
 
 logging.basicConfig()
 log = logging.getLogger(__name__)

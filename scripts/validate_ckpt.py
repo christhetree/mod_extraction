@@ -3,8 +3,8 @@ import os
 
 import yaml
 
-from lfo_tcn.cli import CustomLightningCLI
-from lfo_tcn.paths import MODELS_DIR, CONFIGS_DIR
+from mod_extraction.cli import CustomLightningCLI
+from mod_extraction.paths import MODELS_DIR
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 if __name__ == "__main__":
     model_dir = MODELS_DIR
-    model_name = "lfo_2dcnn_32_64_96_io__ph_all2_idmt_4_fl_ch_idmt_4_ibanez_fast__epoch_182_step_18300"
+    model_name = "lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840"
 
     config_path = os.path.join(model_dir, f"{model_name}.yml")
     ckpt_path = os.path.join(model_dir, f"{model_name}.ckpt")

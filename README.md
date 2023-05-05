@@ -19,6 +19,7 @@
 <ol>
     <li>Clone this repository and open its directory.</li>
     <li>Create an out directory (<code>mkdir out</code>).</li>
+    <li>Create a data directory (<code>mkdir data</code>).</li>
     <li>
     Install the requirements using <br><code>conda env create --file=conda_env_cpu.yml</code> or <br>
     <code>conda env create --file=conda_env.yml</code><br> for GPU acceleration. <br>

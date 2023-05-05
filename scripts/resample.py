@@ -10,8 +10,8 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 if __name__ == "__main__":
-    src_path = "../data/marco/vocalset/vocalset_input.wav"
-    dest_path = "../data/marco/vocalset/vocalset_input_44100.wav"
+    src_path = "../data/unseen_audio/vocalset/vocalset_input.wav"
+    dest_path = "../data/unseen_audio/vocalset/vocalset_input_44100.wav"
     new_sr = 44100
     src_audio, src_sr = torchaudio.load(src_path)
     resampler = Resample(src_sr, new_sr)
