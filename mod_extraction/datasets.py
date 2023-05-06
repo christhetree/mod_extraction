@@ -6,16 +6,13 @@ from typing import Dict, Optional, List, Any, Tuple, Type
 import pyloudnorm as pyln
 import torch as tr
 import torchaudio
-from matplotlib import pyplot as plt
 from pedalboard import Pedalboard, Phaser
 from torch import Tensor as T
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from mod_extraction import fx, util
-from mod_extraction.modulations import make_mod_signal, make_quasi_periodic
-from mod_extraction.plotting import plot_spectrogram
-from mod_extraction.util import linear_interpolate_last_dim
+from mod_extraction.modulations import make_mod_signal, make_quasi_periodic, make_combined_mod_sig
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -97,7 +94,6 @@ class RandomAudioChunkDataset(Dataset):
             silence_fraction_allowed: float = 0.2,
             silence_threshold_energy: float = 1e-6,  # Around -60 dBFS
             n_retries: int = 10,
-            use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
             end_buffer_n_samples: int = 0,
@@ -113,7 +109,6 @@ class RandomAudioChunkDataset(Dataset):
         self.silence_fraction_allowed = silence_fraction_allowed
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
-        self.use_debug_mode = use_debug_mode
         self.check_dataset = check_dataset
         self.min_suitable_files_fraction = min_suitable_files_fraction
         self.end_buffer_n_samples = end_buffer_n_samples
@@ -257,7 +252,6 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
             silence_fraction_allowed: float = 0.1,
             silence_threshold_energy: float = 1e-6,
             n_retries: int = 10,
-            use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
             end_buffer_n_samples: int = 0,
@@ -272,7 +266,6 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
                          silence_fraction_allowed,
                          silence_threshold_energy,
                          n_retries,
-                         use_debug_mode,
                          check_dataset,
                          min_suitable_files_fraction,
                          end_buffer_n_samples,
@@ -347,7 +340,6 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
             silence_fraction_allowed: float = 0.1,
             silence_threshold_energy: float = 1e-6,
             n_retries: int = 10,
-            use_debug_mode: bool = False,
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
             end_buffer_n_samples: int = 0,
@@ -362,7 +354,6 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                          silence_fraction_allowed,
                          silence_threshold_energy,
                          n_retries,
-                         use_debug_mode,
                          check_dataset,
                          min_suitable_files_fraction,
                          end_buffer_n_samples,
@@ -378,23 +369,15 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                                     self.fx_config["mod_sig"]["phase"]["max"])
         shape = util.choice(self.fx_config["mod_sig"]["shapes"])
         exp = self.fx_config["mod_sig"]["exp"]
-        mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape, exp)
 
-        # TODO(cm)
-        # mod_sig = make_mod_signal(self.n_samples // 100, self.sr / 100, rate_hz, phase, shape, exp)
-        #
-        # mod_sig = concave_convex_mod_sig(self.n_samples,
-        #                                  self.sr,
-        #                                  rate_hz,
-        #                                  phase,
-        #                                  concave_max=0.6,
-        #                                  convex_min=1.5)
-        # mod_sig = make_combined_mod_sig(self.n_samples // 100,
-        #                                 self.sr / 100,
-        #                                 rate_hz,
-        #                                 phase,
-        #                                 shapes=self.fx_config["mod_sig"]["shapes"],
-        #                                 )
+        if "combined" in self.fx_config["mod_sig"] and self.fx_config["mod_sig"]["combined"]:
+            mod_sig = make_combined_mod_sig(self.n_samples,
+                                            self.sr,
+                                            rate_hz,
+                                            phase,
+                                            self.fx_config["mod_sig"]["shapes"])
+        else:
+            mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape, exp)
 
         if "quasiperiodic" in self.fx_config["mod_sig"] and self.fx_config["mod_sig"]["quasiperiodic"]:
             l_min = self.fx_config["mod_sig"]["l_min"]
@@ -462,15 +445,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         wet = proc_audio[:, start_idx:start_idx + self.n_samples]
         mod_sig = proc_mod_sig[start_idx:start_idx + self.n_samples]
 
-        if self.use_debug_mode:
-            plt.plot(mod_sig.squeeze(0))
-            plt.title(f"phaser_mod_sig_{idx}")
-            plt.show()
-            plot_spectrogram(dry, title=f"phaser_dry_{idx}", save_name=f"phaser_dry_{idx}", sr=self.sr)
-            plot_spectrogram(wet, title=f"phaser_wet_{idx}", save_name=f"phaser_wet_{idx}", sr=self.sr)
-
-        fx_params = defaultdict(float, fx_params)  # TODO(cm)
-        mod_sig = linear_interpolate_last_dim(mod_sig, 882, align_corners=True)  # TODO
+        fx_params = defaultdict(float, fx_params)  # TODO(cm): fix param inconsistencies between phaser and flanger
         return dry, wet, mod_sig, fx_params
 
     @staticmethod
@@ -491,9 +466,10 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
                             mix=mix))
         y = tr.from_numpy(board(x.numpy(), sr))
         y = tr.clip(y, -1.0, 1.0)  # TODO(cm): should clip flag
+        # TODO(cm): fix param inconsistencies between phaser and flanger
         fx_params = {
             "depth": depth,
-            # "centre_frequency_hz": centre_frequency_hz,  # TODO(cm)
+            # "centre_frequency_hz": centre_frequency_hz,
             "feedback": feedback,
             "mix": mix,
             "rate_hz": rate_hz,
@@ -517,15 +493,7 @@ class TremoloDataset(RandomAudioChunkAndModSigDataset):
         wet = fx.apply_tremolo(dry.unsqueeze(0), mod_sig.unsqueeze(0), mix)
         wet = wet.squeeze(0)
 
-        # TODO(cm): Extract into method
-        if self.use_debug_mode:
-            plt.plot(mod_sig)
-            plt.title(f"tremolo_mod_sig_{idx}")
-            plt.show()
-            plot_spectrogram(dry, title=f"tremolo_dry_{idx}", save_name=f"tremolo_dry_{idx}", sr=self.sr)
-            plot_spectrogram(wet, title=f"tremolo_wet_{idx}", save_name=f"tremolo_wet_{idx}", sr=self.sr)
-
-        fx_params = defaultdict(float, fx_params)  # TODO(cm)
+        fx_params = defaultdict(float, fx_params)  # TODO(cm): fix param inconsistencies between phaser and flanger
         return dry, wet, mod_sig, fx_params
 
 
@@ -533,13 +501,11 @@ class PreprocessedDataset(Dataset):
     def __init__(self,
                  input_dir: str,
                  n_samples: int,
-                 sr: float,
-                 use_debug_mode: bool = False) -> None:
+                 sr: float) -> None:
         super().__init__()
         self.input_dir = input_dir
         self.n_samples = n_samples
         self.sr = sr
-        self.use_debug_mode = use_debug_mode
         self.pt_paths = RandomAudioChunkDataset.get_file_paths(input_dir, ".pt")
         self.dry_paths = [f"{p[:-3]}_dry.wav" for p in self.pt_paths]
         self.wet_paths = [f"{p[:-3]}_wet.wav" for p in self.pt_paths]
@@ -561,13 +527,6 @@ class PreprocessedDataset(Dataset):
         assert sr == self.sr
         assert wet.size(-1) == self.n_samples
 
-        if self.use_debug_mode:
-            plt.plot(mod_sig)
-            plt.title(f"mod_sig_{idx}")
-            plt.show()
-            plot_spectrogram(dry, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=sr)
-            plot_spectrogram(wet, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=sr)
-
         return dry, wet, mod_sig, fx_params
 
 
@@ -576,9 +535,8 @@ class RandomPreprocessedDataset(PreprocessedDataset):
                  num_examples_per_epoch: int,
                  input_dir: str,
                  n_samples: int,
-                 sr: float,
-                 use_debug_mode: bool = False) -> None:
-        super().__init__(input_dir, n_samples, sr, use_debug_mode)
+                 sr: float) -> None:
+        super().__init__(input_dir, n_samples, sr)
         self.num_examples_per_epoch = num_examples_per_epoch
 
     def __len__(self) -> int:

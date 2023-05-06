@@ -19,7 +19,6 @@ data:
   init_args:
     batch_size: 125
     num_workers: 8
-    use_debug_mode: false
     train_dir: ../data/unseen_audio/mdb_gtr
     val_dir: ../data/unseen_audio/mdb_gtr
 #    val_dir: ../data/unseen_audio/mdb_bass

@@ -3,7 +3,6 @@ init_args:
   batch_size: 100
   num_workers: 8
   shared_args:
-    use_debug_mode: false
     n_samples: 88200
     sr: 44100
   shared_train_args:

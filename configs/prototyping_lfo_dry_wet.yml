@@ -16,7 +16,6 @@ data:
   init_args:
     batch_size: 125
     num_workers: 8
-    use_debug_mode: false
     dry_train_dir: ../data/melda_ph_quasi/train/dry
     dry_val_dir: ../data/melda_ph_quasi/train/dry
     wet_train_dir: ../data/melda_ph_quasi/train/wet

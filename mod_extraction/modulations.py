@@ -21,7 +21,6 @@ def make_mod_signal(n_samples: int,
                     exp: float = 1.0) -> T:
     assert n_samples > 0
     assert 0.0 < freq < sr / 2.0
-    # assert sr < 1000
     assert -2 * tr.pi <= phase <= 2 * tr.pi
     assert shape in {"cos", "rect_cos", "inv_rect_cos", "tri", "saw", "rsaw", "sqr"}
     if shape in {"rect_cos", "inv_rect_cos"}:
@@ -324,8 +323,6 @@ def check_mod_sig(mod_sig: T,
         return False
     if n_bottom_corners > max_bottom_corners:
         return False
-    # plt.plot(mod_sig)
-    # plt.show()
     n_frames = mod_sig.size(0)
     min_n_frames = int(min_fraction_between_corners * n_frames)
     top_indices = (top_corners == 1).nonzero(as_tuple=True)[0]

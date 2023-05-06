@@ -3,14 +3,12 @@ import os
 from typing import Dict, Any, Optional, List
 
 import pytorch_lightning as pl
-from matplotlib import pyplot as plt
 from torch import Tensor as T
 from torch.utils.data import DataLoader
 
 from mod_extraction.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
     RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset, RandomPreprocessedDataset
 from mod_extraction.fx import MonoFlangerChorusModule
-from mod_extraction.plotting import plot_spectrogram
 from mod_extraction.util import linear_interpolate_last_dim
 
 logging.basicConfig()
@@ -100,7 +98,6 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                  silence_threshold_energy: float = 1e-6,
                  n_retries: int = 10,
                  num_workers: int = 0,
-                 use_debug_mode: bool = False,
                  check_dataset: bool = True,
                  end_buffer_n_samples: int = 0,
                  should_peak_norm: bool = False,
@@ -122,7 +119,6 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
         self.num_workers = num_workers
-        self.use_debug_mode = use_debug_mode
         self.check_dataset = check_dataset
         self.end_buffer_n_samples = end_buffer_n_samples
         self.should_peak_norm = should_peak_norm
@@ -141,7 +137,6 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -157,7 +152,6 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -199,7 +193,6 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                  silence_threshold_energy: float = 1e-6,
                  n_retries: int = 10,
                  num_workers: int = 0,
-                 use_debug_mode: bool = False,
                  check_dataset: bool = True,
                  end_buffer_n_samples: int = 0,
                  should_peak_norm: bool = False,
@@ -216,7 +209,6 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                          silence_threshold_energy,
                          n_retries,
                          num_workers,
-                         use_debug_mode,
                          check_dataset,
                          end_buffer_n_samples,
                          should_peak_norm,
@@ -239,7 +231,6 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -256,7 +247,6 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -285,7 +275,6 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                  silence_threshold_energy: float = 1e-6,
                  n_retries: int = 10,
                  num_workers: int = 0,
-                 use_debug_mode: bool = False,
                  check_dataset: bool = True,
                  end_buffer_n_samples: int = 0,
                  should_peak_norm: bool = False,
@@ -302,7 +291,6 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                          silence_threshold_energy,
                          n_retries,
                          num_workers,
-                         use_debug_mode,
                          check_dataset,
                          end_buffer_n_samples,
                          should_peak_norm,
@@ -322,7 +310,6 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -339,7 +326,6 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -363,7 +349,6 @@ class RandomAudioChunkAndModSigDataModule(PedalboardPhaserDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -380,7 +365,6 @@ class RandomAudioChunkAndModSigDataModule(PedalboardPhaserDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -415,7 +399,6 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -432,7 +415,6 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 silence_fraction_allowed=self.silence_fraction_allowed,
                 silence_threshold_energy=self.silence_threshold_energy,
                 n_retries=self.n_retries,
-                use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
                 should_peak_norm=self.should_peak_norm,
@@ -479,14 +461,6 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
 
         wet = self.flanger(dry, mod_sig, feedback, min_delay_width, width, depth, mix)
 
-        if self.use_debug_mode:
-            for idx, (d, w, m) in enumerate(zip(dry, wet, mod_sig)):
-                plt.plot(m.squeeze(0))
-                plt.title(f"flanger_mod_sig_{idx}")
-                plt.show()
-                plot_spectrogram(d, title=f"flanger_dry_{idx}", save_name=f"flanger_dry_{idx}", sr=self.sr)
-                plot_spectrogram(w, title=f"flanger_wet_{idx}", save_name=f"flanger_wet_{idx}", sr=self.sr)
-
         return dry, wet, mod_sig, fx_params
 
 
@@ -498,7 +472,6 @@ class PreprocessedDataModule(pl.LightningDataModule):
                  n_samples: int,
                  sr: float,
                  num_workers: int = 0,
-                 use_debug_mode: bool = False,
                  train_num_examples_per_epoch: Optional[int] = None,  # TODO(cm): fix offline config to remove this
                  val_num_examples_per_epoch: Optional[int] = None) -> None:
         super().__init__()
@@ -512,19 +485,12 @@ class PreprocessedDataModule(pl.LightningDataModule):
         self.n_samples = n_samples
         self.sr = sr
         self.num_workers = num_workers
-        self.use_debug_mode = use_debug_mode
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.train_dataset = PreprocessedDataset(self.train_dir,
-                                                     self.n_samples,
-                                                     self.sr,
-                                                     use_debug_mode=self.use_debug_mode)
+            self.train_dataset = PreprocessedDataset(self.train_dir, self.n_samples, self.sr)
         if stage == "validate" or "fit":
-            self.val_dataset = PreprocessedDataset(self.val_dir,
-                                                   self.n_samples,
-                                                   self.sr,
-                                                   use_debug_mode=self.use_debug_mode)
+            self.val_dataset = PreprocessedDataset(self.val_dir, self.n_samples, self.sr)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
@@ -554,9 +520,8 @@ class RandomPreprocessedDataModule(PreprocessedDataModule):
                  val_dir: str,
                  n_samples: int,
                  sr: float,
-                 num_workers: int = 0,
-                 use_debug_mode: bool = False) -> None:
-        super().__init__(batch_size, train_dir, val_dir, n_samples, sr, num_workers, use_debug_mode)
+                 num_workers: int = 0) -> None:
+        super().__init__(batch_size, train_dir, val_dir, n_samples, sr, num_workers)
         self.train_num_examples_per_epoch = train_num_examples_per_epoch
         self.val_num_examples_per_epoch = val_num_examples_per_epoch
 
@@ -565,11 +530,9 @@ class RandomPreprocessedDataModule(PreprocessedDataModule):
             self.train_dataset = RandomPreprocessedDataset(self.train_num_examples_per_epoch,
                                                            self.train_dir,
                                                            self.n_samples,
-                                                           self.sr,
-                                                           use_debug_mode=self.use_debug_mode)
+                                                           self.sr)
         if stage == "validate" or "fit":
             self.val_dataset = RandomPreprocessedDataset(self.val_num_examples_per_epoch,
                                                          self.val_dir,
                                                          self.n_samples,
-                                                         self.sr,
-                                                         use_debug_mode=self.use_debug_mode)
+                                                         self.sr)

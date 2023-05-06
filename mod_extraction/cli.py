@@ -141,12 +141,6 @@ class CustomLightningCLI(LightningCLI):
             if "shared_args" in config.data.init_args or "shared_train_args" in config.data.init_args:
                 del config.data.init_args["train_num_examples_per_epoch"]
                 del config.data.init_args["val_num_examples_per_epoch"]
-        else:
-            # TODO: make generic
-            if "shared_args" in config.data.init_args:
-                assert not config.data.init_args.shared_args["use_debug_mode"]
-            else:
-                assert not config.data.init_args.use_debug_mode
 
     def before_fit(self) -> None:
         for cb in self.trainer.callbacks:
