@@ -370,14 +370,15 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
         shape = util.choice(self.fx_config["mod_sig"]["shapes"])
         exp = self.fx_config["mod_sig"]["exp"]
 
+        # TODO(cm): define LFO sampling rate in config
         if "combined" in self.fx_config["mod_sig"] and self.fx_config["mod_sig"]["combined"]:
-            mod_sig = make_combined_mod_sig(self.n_samples,
-                                            self.sr,
+            mod_sig = make_combined_mod_sig(self.n_samples // 100,
+                                            self.sr // 100,
                                             rate_hz,
                                             phase,
                                             self.fx_config["mod_sig"]["shapes"])
         else:
-            mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape, exp)
+            mod_sig = make_mod_signal(self.n_samples // 100, self.sr // 100, rate_hz, phase, shape, exp)
 
         if "quasiperiodic" in self.fx_config["mod_sig"] and self.fx_config["mod_sig"]["quasiperiodic"]:
             l_min = self.fx_config["mod_sig"]["l_min"]
@@ -444,6 +445,8 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         dry = audio_chunk[:, start_idx:start_idx + self.n_samples]
         wet = proc_audio[:, start_idx:start_idx + self.n_samples]
         mod_sig = proc_mod_sig[start_idx:start_idx + self.n_samples]
+        # TODO(cm): define LFO sampling rate in config
+        mod_sig = util.linear_interpolate_last_dim(mod_sig, self.n_samples // 100, align_corners=True)
 
         fx_params = defaultdict(float, fx_params)  # TODO(cm): fix param inconsistencies between phaser and flanger
         return dry, wet, mod_sig, fx_params

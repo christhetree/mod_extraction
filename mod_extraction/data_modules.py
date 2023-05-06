@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from torch import Tensor as T
 from torch.utils.data import DataLoader
 
+from mod_extraction import util
 from mod_extraction.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
     RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset, RandomPreprocessedDataset
 from mod_extraction.fx import MonoFlangerChorusModule
@@ -423,27 +424,27 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
 
     def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):
         dry, mod_sig, fx_params = batch
-        feedback = RandomAudioChunkDataset.sample_uniform(
+        feedback = util.sample_uniform(
             self.fx_config["flanger"]["feedback"]["min"],
             self.fx_config["flanger"]["feedback"]["max"],
             n=self.batch_size,
         )
-        min_delay_width = RandomAudioChunkDataset.sample_uniform(
+        min_delay_width = util.sample_uniform(
             self.fx_config["flanger"]["min_delay_width"]["min"],
             self.fx_config["flanger"]["min_delay_width"]["max"],
             n=self.batch_size,
         )
-        width = RandomAudioChunkDataset.sample_uniform(
+        width = util.sample_uniform(
             self.fx_config["flanger"]["width"]["min"],
             self.fx_config["flanger"]["width"]["max"],
             n=self.batch_size,
         )
-        depth = RandomAudioChunkDataset.sample_uniform(
+        depth = util.sample_uniform(
             self.fx_config["flanger"]["depth"]["min"],
             self.fx_config["flanger"]["depth"]["max"],
             n=self.batch_size,
         )
-        mix = RandomAudioChunkDataset.sample_uniform(
+        mix = util.sample_uniform(
             self.fx_config["flanger"]["mix"]["min"],
             self.fx_config["flanger"]["mix"]["max"],
             n=self.batch_size,
@@ -460,7 +461,6 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
             mod_sig = linear_interpolate_last_dim(mod_sig, dry.size(-1))
 
         wet = self.flanger(dry, mod_sig, feedback, min_delay_width, width, depth, mix)
-
         return dry, wet, mod_sig, fx_params
 
 

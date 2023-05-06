@@ -9,10 +9,10 @@ from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
-from mod_extraction.modulations import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
 from mod_extraction.losses import get_loss_func_by_name
 from mod_extraction.models import HiddenStateModel
-from mod_extraction.paths import OUT_DIR
+from mod_extraction.modulations import stretch_corners, find_valid_mod_sig_indices
+from mod_extraction.plotting import plot_spectrogram, plot_mod_sig
 from mod_extraction.util import linear_interpolate_last_dim
 
 logging.basicConfig()
@@ -23,8 +23,7 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 class BaseLightingModule(pl.LightningModule):
     default_loss_dict = {"l1": 1.0, "mse": 0.0}
 
-    def __init__(self,
-                 loss_dict: Optional[Dict[str, float]] = None) -> None:
+    def __init__(self, loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__()
         if loss_dict is None:
             loss_dict = self.default_loss_dict
@@ -67,11 +66,11 @@ class LFOExtraction(BaseLightingModule):
     def __init__(self,
                  model: nn.Module,
                  sr: float = 44100,
-                 use_dry: bool = False,
+                 use_dry: bool = True,
                  model_smooth_n_frames: int = 4,
                  should_stretch: bool = False,
-                 max_n_corners: int = 20,
-                 stretch_smooth_n_frames: int = 16,
+                 max_n_corners: int = 16,
+                 stretch_smooth_n_frames: int = 0,
                  sub_batch_size: Optional[int] = None,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
@@ -112,23 +111,6 @@ class LFOExtraction(BaseLightingModule):
             mod_sig_hat, latent = self.model(wet)
         mod_sig_hat = mod_sig_hat.squeeze(1)
 
-        # dry = wet
-        # phase_all = fx_params["phase"]
-        # freq_all = fx_params["rate_hz"]
-        # shapes_all = fx_params["shape"]
-        # mod_sig_hat = make_rand_mod_signal(
-        #     batch_size=wet.size(0),
-        #     n_samples=345,
-        #     sr=172.5,
-        #     freq_min=0.5,
-        #     freq_max=3.0,
-        #     shapes_all=shapes_all,
-        #     freq_all=freq_all,
-        #     phase_all=phase_all,
-        #     freq_error=0.25,
-        #     phase_error=0.5,
-        # )
-
         if mod_sig is None:
             mod_sig = tr.zeros_like(mod_sig_hat)
         else:
@@ -148,24 +130,12 @@ class LFOExtraction(BaseLightingModule):
                 mod_sig = self.center_crop_mod_sig(mod_sig, mod_sig_hat.size(-1))
         assert mod_sig.shape == mod_sig_hat.shape
 
-        # valid_indices = find_valid_mod_sig_indices(mod_sig_hat)
-        # if not valid_indices:
-        #     log.info("No valid LFO signals found")
-        #     return None, None, None
-        # log.info(f"Found {len(valid_indices)} valid LFO signals")
-        # dry = dry[valid_indices, ...]
-        # wet = wet[valid_indices, ...]
-        # mod_sig_hat = mod_sig_hat[valid_indices, ...]
-        # if mod_sig is not None:
-        #     mod_sig = mod_sig[valid_indices, ...]
-
         loss = self.calc_and_log_losses(mod_sig_hat, mod_sig, prefix)
 
         data_dict = {
             "wet": wet.detach().float().cpu(),
             "mod_sig": mod_sig.detach().float().cpu(),
             "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
-            # "latent": latent.detach().float().cpu(),
         }
         if dry is not None:
             data_dict["dry"] = dry.detach().float().cpu()
@@ -173,21 +143,19 @@ class LFOExtraction(BaseLightingModule):
         if fx_params is not None:
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
-        # TODO(cm)
-        if data_dict["mod_sig_hat"].size(0) < 10:
-            from lfo_tcn.plotting import plot_spectrogram
-            for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"],
-                                                  data_dict["wet"],
-                                                  data_dict["mod_sig_hat"])):
-                from matplotlib import pyplot as plt
+        # Debugging loop
+        if wet.size(0) < 15:
+            for idx, (w, m_h) in enumerate(zip(data_dict["wet"], data_dict["mod_sig_hat"])):
+                m = None
                 if "mod_sig" in data_dict:
                     m = data_dict["mod_sig"][idx]
-                    plt.plot(m)
-                plt.plot(m_h)
-                plt.title(f"mod_sig_{idx}")
-                plt.show()
-                # plot_spectrogram(d, title=f"dry_{idx}", save_name=f"dry_{idx}", sr=self.sr)
-                plot_spectrogram(w, title=f"wet_{idx}", save_name=f"wet_{idx}", sr=self.sr)
+                d = None
+                if "dry" in data_dict:
+                    d = data_dict["dry"][idx]
+                plot_mod_sig(m_h, m, save_name=f"{idx}_mod_sig")
+                if d is not None:
+                    plot_spectrogram(d, title=f"{idx}_dry", save_name=f"{idx}_dry", sr=self.sr)
+                plot_spectrogram(w, title=f"{idx}_wet", save_name=f"{idx}_wet", sr=self.sr)
             exit()
 
         return loss, data_dict, fx_params
@@ -234,24 +202,43 @@ class LFOExtraction(BaseLightingModule):
         return loss, data_dict, fx_params
 
 
-# TODO(cm): refactor
-class LFOEffectModeling(BaseLightingModule):
+class TBPTTLFOEffectModeling(BaseLightingModule):
     default_loss_dict = {"l1": 1.0, "esr": 0.0, "dc": 0.0}
 
     def __init__(self,
-                 effect_model: nn.Module,
+                 warmup_n_samples: int,
+                 step_n_samples: int,
+                 effect_model: HiddenStateModel,
                  lfo_model: Optional[nn.Module] = None,
                  lfo_model_weights_path: Optional[str] = None,
-                 freeze_lfo_model: bool = False,
+                 freeze_lfo_model: bool = True,
+                 param_model: Optional[nn.Module] = None,
                  sr: float = 44100,
+                 use_dry: bool = True,
+                 model_smooth_n_frames: int = 8,
+                 should_stretch: bool = True,
+                 max_n_corners: int = 16,
+                 stretch_smooth_n_frames: int = 0,
+                 discard_invalid_lfos: bool = True,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
-        self.freeze_lfo_model = freeze_lfo_model
-        self.sr = sr
-        self.use_gt_mod_sig = lfo_model is None
         self.save_hyperparameters(ignore=["effect_model", "lfo_model", "param_model"])
         log.info(f"\n{self.hparams}")
+
+        assert warmup_n_samples > 0
+        self.warmup_n_samples = warmup_n_samples
+        self.step_n_samples = step_n_samples
         self.effect_model = effect_model
+        self.lfo_model_weights_path = lfo_model_weights_path
+        self.freeze_lfo_model = freeze_lfo_model
+        self.param_model = param_model
+        self.sr = sr
+        self.use_dry = use_dry
+        self.model_smooth_n_frames = model_smooth_n_frames
+        self.should_stretch = should_stretch
+        self.max_n_corners = max_n_corners
+        self.stretch_smooth_n_frames = stretch_smooth_n_frames
+        self.discard_invalid_lfos = discard_invalid_lfos
 
         if lfo_model is not None:
             if lfo_model_weights_path is not None:
@@ -267,6 +254,8 @@ class LFOEffectModeling(BaseLightingModule):
             log.info("Using ground truth mod_sig")
 
         self.lfo_model = lfo_model
+        self.automatic_optimization = False
+        self.use_gt_mod_sig = lfo_model is None
 
     def extract_mod_sig(self, wet: T, mod_sig: Optional[T] = None) -> (T, Optional[T]):
         with tr.no_grad() if self.lfo_model is None or self.freeze_lfo_model else nullcontext():
@@ -283,86 +272,6 @@ class LFOEffectModeling(BaseLightingModule):
                 assert mod_sig.shape == mod_sig_hat.shape
             return mod_sig_hat, mod_sig
 
-    def common_step(self,
-                    batch: (T, T, Optional[T], Optional[Dict[str, T]]),
-                    is_training: bool) -> (T, Dict[str, T], Optional[Dict[str, T]]):
-        prefix = "train" if is_training else "val"
-        dry, wet, mod_sig, fx_params = batch
-        assert dry.size(-1) == wet.size(-1)
-
-        mod_sig_hat, mod_sig = self.extract_mod_sig(wet, mod_sig)
-        mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
-        mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)
-
-        if isinstance(self.effect_model, HiddenStateModel):
-            self.effect_model.detach_hidden()
-        wet_hat = self.effect_model(dry, mod_sig_hat_sr)
-        assert dry.shape == wet.shape == wet_hat.shape
-
-        loss = self.calc_and_log_losses(wet_hat, wet, prefix)
-
-        data_dict = {
-            "dry": dry.detach().float().cpu(),
-            "wet": wet.detach().float().cpu(),
-            "wet_hat": wet_hat.detach().float().cpu(),
-            "mod_sig_hat": mod_sig_hat.detach().float().cpu(),
-        }
-        if mod_sig is not None:
-            data_dict["mod_sig"] = mod_sig.detach().float().cpu()
-
-        if fx_params is not None:
-            fx_params = {k: v.detach().float().cpu() for k, v in fx_params.items()}
-        return loss, data_dict, fx_params
-
-    def training_step(self, batch: (T, T, T, Dict[str, T]), batch_idx: int) -> T:
-        result = self.common_step(batch, is_training=True)
-        if result is None:
-            return None
-        loss = result[0]
-        return loss
-
-    def validation_step(self,
-                        batch: (T, T, T, Dict[str, T]),
-                        batch_idx: int) -> (T, Dict[str, T], Optional[Dict[str, T]]):
-        return self.common_step(batch, is_training=False)
-
-
-class TBPTTLFOEffectModeling(LFOEffectModeling):
-    def __init__(self,
-                 warmup_n_samples: int,
-                 step_n_samples: int,
-                 effect_model: HiddenStateModel,
-                 lfo_model: Optional[nn.Module] = None,
-                 lfo_model_weights_path: Optional[str] = None,
-                 freeze_lfo_model: bool = True,
-                 param_model: Optional[nn.Module] = None,
-                 sr: float = 44100,
-                 use_dry: bool = False,
-                 model_smooth_n_frames: int = 8,
-                 should_stretch: bool = False,
-                 max_n_corners: int = 16,
-                 stretch_smooth_n_frames: int = 8,
-                 discard_invalid_lfos: bool = False,
-                 loss_dict: Optional[Dict[str, float]] = None) -> None:
-        assert warmup_n_samples > 0
-        super().__init__(effect_model,
-                         lfo_model,
-                         lfo_model_weights_path,
-                         freeze_lfo_model=freeze_lfo_model,
-                         sr=sr,
-                         loss_dict=loss_dict)
-        self.warmup_n_samples = warmup_n_samples
-        self.step_n_samples = step_n_samples
-        self.param_model = param_model
-        self.use_dry = use_dry
-        self.model_smooth_n_frames = model_smooth_n_frames
-        self.should_stretch = should_stretch
-        self.max_n_corners = max_n_corners
-        self.stretch_smooth_n_frames = stretch_smooth_n_frames
-        self.discard_invalid_lfos = discard_invalid_lfos
-        self.automatic_optimization = False
-
-    # TODO(cm): refactor
     def center_crop_mod_sig(self, mod_sig: T, size: int) -> T:
         if size == mod_sig.size(-1):
             return mod_sig
@@ -413,23 +322,6 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         n_samples = int((n_frames / (n_frames + removed_n_frames)) * dry.size(-1))
         dry = self.center_crop_mod_sig(dry, n_samples)
         wet = self.center_crop_mod_sig(wet, n_samples)
-
-        # freq_all = tr.ones((wet.size(0),)) * 0.75
-        # freq_all = tr.ones((wet.size(0),)) * 2.0
-        # mod_sig_hat = make_rand_mod_signal(
-        #     batch_size=wet.size(0),
-        #     n_samples=345,
-        #     sr=172.5,
-        #     freq_min=0.5,
-        #     freq_max=2.0,
-        #     shapes=["tri"],
-        #     freq_all=freq_all,
-        #     freq_error=0.0,
-        #     # freq_error=0.25,
-        # )
-        # mod_sig_hat = mod_sig_hat.to(self.device)
-
-        # mod_sig_hat = tr.zeros((wet.size(0), 345)).to(self.device)
 
         if self.discard_invalid_lfos:
             valid_indices = find_valid_mod_sig_indices(mod_sig_hat)
@@ -514,53 +406,27 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
         if fx_params is not None:
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
+        # Debugging loop
         if wet.size(0) < 15:
-            # prefix = "melda_ph_irregular_lstm"
-            # prefix = "melda_fl_irregular_lstm"
-            # prefix = "melda_ph_irregular_rand"
-            # prefix = "melda_ph_quasi_lstm"
-            # prefix = "melda_ph_quasi_rand"
-            # prefix = "melda_fl_quasi_lstm"
-            # prefix = "melda_fl_quasi_rand"
-
-            # prefix = "egfx_ph_lstm"
-            # prefix = "egfx_fl_lstm"
-            # prefix = "egfx_ch_lstm"
-            prefix = "egfx_ph_rand"
-            # prefix = "egfx_fl_rand"
-            # prefix = "egfx_ch_rand"
-            from matplotlib import pyplot as plt
-            from mod_extraction.plotting import plot_spectrogram
-            for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
-                                                       data_dict["wet"],
-                                                       data_dict["wet_hat"],
-                                                       data_dict["mod_sig_hat"])):
+            for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"], data_dict["wet"], data_dict["mod_sig_hat"])):
+                m = None
                 if "mod_sig" in data_dict:
                     m = data_dict["mod_sig"][idx]
-                    plt.plot(m)
-                plt.plot(m_h, c='black', linewidth=4.0)
-                ax = plt.gca()
-                ax.spines[['right', 'top']].set_visible(False)
-
-                # Hide X and Y axes label marks
-                ax.xaxis.set_tick_params(labelbottom=False)
-                # ax.yaxis.set_tick_params(labelleft=False)
-
-                # Hide X and Y axes tick marks
-                ax.set_xticks([])
-                ax.set_yticks([0.0, 0.5, 1.0])
-                plt.yticks(fontsize=18)
-                # plt.ylim([0, 1])
-
-                # ax.set_aspect('equal', adjustable='box')
-                # plt.axis('off')
-                # plt.title(f"mod_sig_{idx}")
-                plt.tight_layout()
-                plt.savefig(os.path.join(OUT_DIR, f"{idx}_{prefix}_lfo.svg"))
-                plt.show()
-                plot_spectrogram(d, title=f"dry_{idx}", save_name=f"{idx}_{prefix}_dry", sr=self.sr)
-                plot_spectrogram(w, title=f"wet_{idx}", save_name=f"{idx}_{prefix}_wet", sr=self.sr)
-                plot_spectrogram(w_h, title=f"wet_hat_{idx}", save_name=f"{idx}_{prefix}_wet_hat", sr=self.sr)
+                plot_mod_sig(m_h, m, save_name=f"{idx}_mod_sig")
+                plot_spectrogram(d, title=f"{idx}_dry", save_name=f"{idx}_dry", sr=self.sr)
+                plot_spectrogram(w, title=f"{idx}_wet", save_name=f"{idx}_wet", sr=self.sr)
             exit()
 
         return batch_loss, data_dict, fx_params
+
+    def training_step(self, batch: (T, T, Optional[T], Optional[Dict[str, T]]), batch_idx: int) -> Optional[T]:
+        result = self.common_step(batch, is_training=True)
+        if result is None:
+            return None
+        loss = result[0]
+        return loss
+
+    def validation_step(self,
+                        batch: (T, T, Optional[T], Optional[Dict[str, T]]),
+                        batch_idx: int) -> (T, Dict[str, T], Optional[Dict[str, T]]):
+        return self.common_step(batch, is_training=False)

@@ -10,16 +10,16 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 if __name__ == "__main__":
-    config_name = "eval_lfo.yml"
+    # config_name = "eval_lfo.yml"
     # config_name = "eval_lfo_unseen_audio.yml"
     # config_name = "eval_lfo_quasi.yml"
     # config_name = "eval_lfo_distorted.yml"
     # config_name = "eval_lfo_combined.yml"
-    # config_name = "eval_lfo_rand.yml"
+    # config_name = "eval_lfo_rand.yml"  # TODO(cm)
 
     # config_name = "eval_em_unseen_effect.yml"
 
-    # config_name = "prototyping_lfo_dry_wet.yml"
+    config_name = "prototyping_lfo_dry_wet.yml"
 
     config_path = os.path.join(CONFIGS_DIR, config_name)
     cli = CustomLightningCLI(args=["validate", "--config", config_path],

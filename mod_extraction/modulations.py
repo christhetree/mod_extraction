@@ -303,6 +303,7 @@ def stretch_corners(mod_sig: T, max_n_corners: int = 10, smooth_n_frames: int = 
     return stretched
 
 
+# TODO(cm): move params to config
 def check_mod_sig(mod_sig: T,
                   top_corners: T,
                   bottom_corners: T,

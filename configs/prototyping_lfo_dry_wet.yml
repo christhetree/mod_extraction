@@ -64,8 +64,6 @@ model:
     should_stretch: false
     max_n_corners: 16
     stretch_smooth_n_frames: 0
-#    discard_invalid_lfos: true
-    discard_invalid_lfos: false
     loss_dict:
       l1: 1.0
       fdl1: 5.0

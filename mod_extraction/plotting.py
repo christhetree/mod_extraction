@@ -68,10 +68,32 @@ def plot_spectrogram(audio: T,
     return spec
 
 
-def plot_mod_sig(ax: Subplot,
-                 mod_sig_hat: T,
-                 mod_sig: T,
-                 title: Optional[str] = None) -> None:
+def plot_mod_sig(mod_sig_hat: T,
+                 mod_sig: Optional[T] = None,
+                 mod_sig_hat_c: str = "orange",
+                 mod_sig_c: str = "black",
+                 linewidth: float = 4.0,
+                 save_name: Optional[str] = None,
+                 save_dir: str = OUT_DIR) -> None:
+    if mod_sig is not None:
+        plt.plot(mod_sig, c=mod_sig_c, linewidth=linewidth)
+    plt.plot(mod_sig_hat, c=mod_sig_hat_c, linewidth=linewidth)
+    ax = plt.gca()
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.xaxis.set_tick_params(labelbottom=False)
+    ax.set_xticks([])
+    ax.set_yticks([0.0, 0.5, 1.0])
+    plt.yticks(fontsize=18)
+    plt.tight_layout()
+    if save_name:
+        plt.savefig(os.path.join(save_dir, f"{save_name}.svg"))
+    plt.show()
+
+
+def plot_mod_sig_callback(ax: Subplot,
+                          mod_sig_hat: T,
+                          mod_sig: T,
+                          title: Optional[str] = None) -> None:
     assert mod_sig_hat.ndim == mod_sig.ndim == 1
     mod_sig_hat = mod_sig_hat.detach()
     mod_sig = mod_sig.detach()

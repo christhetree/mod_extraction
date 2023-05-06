@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 from torch import Tensor as T
 
-from mod_extraction.plotting import plot_spectrogram, plot_mod_sig, fig2img, plot_waveforms_stacked
+from mod_extraction.plotting import plot_spectrogram, plot_mod_sig_callback, fig2img, plot_waveforms_stacked
 from mod_extraction.util import linear_interpolate_last_dim
 
 logging.basicConfig()
@@ -84,7 +84,7 @@ class LogSpecAndModSigCallback(Callback):
                     m = mod_sig[idx]
                     if m.size(-1) != n_frames:
                         m = linear_interpolate_last_dim(m, n_frames)
-                    plot_mod_sig(ax[-1], m_hat, m)
+                    plot_mod_sig_callback(ax[-1], m_hat, m)
                     fig.tight_layout()
                     img = fig2img(fig)
                     self.images.append(img)
@@ -92,6 +92,7 @@ class LogSpecAndModSigCallback(Callback):
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         if self.images:
             for logger in trainer.loggers:
+                # TODO(cm): enable for tensorboard as well
                 if isinstance(logger, WandbLogger):
                     logger.log_image(key="mod_sig_plots",
                                      images=self.images,
@@ -158,26 +159,26 @@ class LogAudioCallback(Callback):
 
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         for logger in trainer.loggers:
+            # TODO(cm): enable for tensorboard as well
             if isinstance(logger, WandbLogger):
-                if isinstance(logger, WandbLogger):
-                    # TODO(cm): combine into one table
-                    logger.log_image(key="audio_plots",
-                                     images=self.images,
-                                     step=trainer.global_step)
-                    data = defaultdict(list)
-                    columns = []
-                    for idx, (d, w, w_hat) in enumerate(zip(self.dry_audio, self.wet_audio, self.wet_hat_audio)):
-                        columns.append(f"idx_{idx}")
-                        if self.log_dry_audio:
-                            data["dry"].append(wandb.Audio(d,
-                                                           caption=f"dry_{idx}",
-                                                           sample_rate=int(pl_module.sr)))
-                        data["wet"].append(wandb.Audio(w,
-                                                       caption=f"wet_{idx}",
+                # TODO(cm): combine into one table
+                logger.log_image(key="audio_plots",
+                                 images=self.images,
+                                 step=trainer.global_step)
+                data = defaultdict(list)
+                columns = []
+                for idx, (d, w, w_hat) in enumerate(zip(self.dry_audio, self.wet_audio, self.wet_hat_audio)):
+                    columns.append(f"idx_{idx}")
+                    if self.log_dry_audio:
+                        data["dry"].append(wandb.Audio(d,
+                                                       caption=f"dry_{idx}",
                                                        sample_rate=int(pl_module.sr)))
-                        data["wet_hat"].append(wandb.Audio(w_hat,
-                                                           caption=f"wet_hat_{idx}",
-                                                           sample_rate=int(pl_module.sr)))
+                    data["wet"].append(wandb.Audio(w,
+                                                   caption=f"wet_{idx}",
+                                                   sample_rate=int(pl_module.sr)))
+                    data["wet_hat"].append(wandb.Audio(w_hat,
+                                                       caption=f"wet_hat_{idx}",
+                                                       sample_rate=int(pl_module.sr)))
 
-                    data = list(data.values())
-                    logger.log_table(key="audio", columns=columns, data=data, step=trainer.global_step)
+                data = list(data.values())
+                logger.log_table(key="audio", columns=columns, data=data, step=trainer.global_step)

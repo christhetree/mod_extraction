@@ -144,7 +144,6 @@ class Spectral2DCNN(nn.Module):
         assert x.ndim == 3
         x = self.spectrogram(x)
 
-        # TODO(cm): disable when training EM
         if self.training:
             if self.freq_mask_amount > 0:
                 x = self.freq_masking(x)
