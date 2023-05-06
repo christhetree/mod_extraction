@@ -14,7 +14,7 @@ from torch import Tensor as T
 from torchaudio.transforms import Spectrogram, Fade
 from torchvision.transforms import ToTensor
 
-from lfo_tcn.paths import OUT_DIR
+from mod_extraction.paths import OUT_DIR
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 def fig2img(fig: Figure, format: str = "png", dpi: int = 120) -> T:
-    """Convert a matplotlib figure to JPEG to be show in Tensorboard."""
+    """Convert a matplotlib figure to tensor."""
     buf = io.BytesIO()
     fig.savefig(buf, format=format, dpi=dpi)
     buf.seek(0)
@@ -37,7 +37,8 @@ def plot_spectrogram(audio: T,
                      title: Optional[str] = None,
                      save_name: Optional[str] = None,
                      save_dir: str = OUT_DIR,
-                     sr: float = 44100) -> T:
+                     sr: float = 44100,
+                     fade_n_samples: int = 64) -> T:
     assert audio.ndim < 3
     audio = audio.detach()
     if audio.ndim == 1:
@@ -58,9 +59,9 @@ def plot_spectrogram(audio: T,
         sr = int(sr)
         if not save_name.endswith(".wav"):
             save_name = f"{save_name}.wav"
-        # TODO(cm)
-        transform = Fade(fade_in_len=64, fade_out_len=64, fade_shape="linear")
-        audio = transform(audio)
+        if fade_n_samples:
+            transform = Fade(fade_in_len=fade_n_samples, fade_out_len=fade_n_samples, fade_shape="linear")
+            audio = transform(audio)
         save_path = os.path.join(save_dir, save_name)
         torchaudio.save(save_path, audio, sr)
 

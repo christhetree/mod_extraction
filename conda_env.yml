@@ -18,6 +18,7 @@ dependencies:
     - nvitop
     - pedalboard
     - pip-chill
+    - pyloudnorm
     - pytorch-lightning[extra]
     - scipy
     - wandb

@@ -7,11 +7,11 @@ from matplotlib import pyplot as plt
 from torch import Tensor as T
 from torch.utils.data import DataLoader
 
-from lfo_tcn.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
+from mod_extraction.datasets import PedalboardPhaserDataset, RandomAudioChunkAndModSigDataset, RandomAudioChunkDataset, \
     RandomAudioChunkDryWetDataset, InterwovenDataset, PreprocessedDataset, RandomPreprocessedDataset
-from lfo_tcn.fx import MonoFlangerChorusModule
-from lfo_tcn.plotting import plot_spectrogram
-from lfo_tcn.util import linear_interpolate_last_dim
+from mod_extraction.fx import MonoFlangerChorusModule
+from mod_extraction.plotting import plot_spectrogram
+from mod_extraction.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -102,7 +102,9 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                  num_workers: int = 0,
                  use_debug_mode: bool = False,
                  check_dataset: bool = True,
-                 end_buffer_n_samples: int = 0) -> None:
+                 end_buffer_n_samples: int = 0,
+                 should_peak_norm: bool = False,
+                 peak_norm_db: float = -1.0) -> None:
         super().__init__()
         self.save_hyperparameters()
         log.info(f"\n{self.hparams}")
@@ -123,6 +125,8 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
         self.use_debug_mode = use_debug_mode
         self.check_dataset = check_dataset
         self.end_buffer_n_samples = end_buffer_n_samples
+        self.should_peak_norm = should_peak_norm
+        self.peak_norm_db = peak_norm_db
         self.train_dataset = None
         self.val_dataset = None
 
@@ -140,6 +144,8 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkDataset(
@@ -154,6 +160,8 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
 
     def train_dataloader(self) -> DataLoader:
@@ -193,7 +201,9 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                  num_workers: int = 0,
                  use_debug_mode: bool = False,
                  check_dataset: bool = True,
-                 end_buffer_n_samples: int = 0) -> None:
+                 end_buffer_n_samples: int = 0,
+                 should_peak_norm: bool = False,
+                 peak_norm_db: float = -1.0) -> None:
         super().__init__(batch_size,
                          dry_train_dir,
                          dry_val_dir,
@@ -208,7 +218,9 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                          num_workers,
                          use_debug_mode,
                          check_dataset,
-                         end_buffer_n_samples)
+                         end_buffer_n_samples,
+                         should_peak_norm,
+                         peak_norm_db)
         self.save_hyperparameters()
         self.dry_train_dir = dry_train_dir
         self.dry_val_dir = dry_val_dir
@@ -230,6 +242,8 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkDryWetDataset(
@@ -245,6 +259,8 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
 
     def on_before_batch_transfer(self,
@@ -271,7 +287,9 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                  num_workers: int = 0,
                  use_debug_mode: bool = False,
                  check_dataset: bool = True,
-                 end_buffer_n_samples: int = 0) -> None:
+                 end_buffer_n_samples: int = 0,
+                 should_peak_norm: bool = False,
+                 peak_norm_db: float = -1.0) -> None:
         super().__init__(batch_size,
                          train_dir,
                          val_dir,
@@ -286,7 +304,9 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                          num_workers,
                          use_debug_mode,
                          check_dataset,
-                         end_buffer_n_samples)
+                         end_buffer_n_samples,
+                         should_peak_norm,
+                         peak_norm_db)
         self.save_hyperparameters()
         self.fx_config = fx_config
 
@@ -305,6 +325,8 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
         if stage == "validate" or "fit":
             self.val_dataset = PedalboardPhaserDataset(
@@ -320,6 +342,8 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
 
 
@@ -342,6 +366,8 @@ class RandomAudioChunkAndModSigDataModule(PedalboardPhaserDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkAndModSigDataset(
@@ -357,6 +383,8 @@ class RandomAudioChunkAndModSigDataModule(PedalboardPhaserDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
 
     def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):
@@ -390,6 +418,8 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
         if stage == "validate" or "fit":
             self.val_dataset = RandomAudioChunkAndModSigDataset(
@@ -405,6 +435,8 @@ class FlangerCPUDataModule(PedalboardPhaserDataModule):
                 use_debug_mode=self.use_debug_mode,
                 check_dataset=self.check_dataset,
                 end_buffer_n_samples=self.end_buffer_n_samples,
+                should_peak_norm=self.should_peak_norm,
+                peak_norm_db=self.peak_norm_db,
             )
 
     def on_before_batch_transfer(self, batch: (T, T), dataloader_idx: int) -> (T, T, T, Dict[str, T]):

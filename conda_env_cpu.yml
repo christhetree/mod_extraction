@@ -11,6 +11,7 @@ dependencies:
     - neutone-sdk
     - pedalboard
     - pip-chill
+    - pyloudnorm
     - pytorch-lightning[extra]
     - scipy
     - torchaudio

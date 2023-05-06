@@ -8,7 +8,7 @@ from torch import Tensor as T
 from torch import nn
 from torchaudio.transforms import Spectrogram, MelSpectrogram, FrequencyMasking, TimeMasking
 
-from lfo_tcn.tcn import TCN
+from mod_extraction.tcn import TCN
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ class SpectralTCN(nn.Module):
                  out_channels: Optional[List[int]] = None,
                  dilations: Optional[List[int]] = None,
                  latent_dim: int = 1,
-                 smooth_n_frames: int = 8,
                  use_ln: bool = True,
                  use_res: bool = True,
                  eps: float = 1e-7) -> None:
@@ -33,7 +32,6 @@ class SpectralTCN(nn.Module):
         self.hop_len = hop_len
         self.kernel_size = kernel_size
         self.latent_dim = latent_dim
-        self.smooth_n_frames = smooth_n_frames
         self.use_ln = use_ln
         self.use_res = use_res
         self.eps = eps
@@ -62,28 +60,14 @@ class SpectralTCN(nn.Module):
         log.info(f"Receptive field = {self.receptive_field} samples")
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
-        # lstm_dim = 64
-        # self.lstm = nn.LSTM(out_channels[-1], lstm_dim, batch_first=True, bidirectional=True)
-        # self.output = nn.Conv1d(2 * lstm_dim, self.latent_dim, kernel_size=(1,))
-
     def forward(self, x: T) -> T:
         assert x.ndim == 3
         x = self.spectrogram(x).squeeze(1)
         x = tr.clip(x, min=self.eps)
         x = tr.log(x)
-
         x = self.tcn(x)
-
-        # lstm_in = tr.swapaxes(x, 1, 2)
-        # lstm_out, _ = self.lstm(lstm_in)
-        # x = tr.swapaxes(lstm_out, 1, 2)
-
         x = self.output(x)
         x = tr.sigmoid(x)
-
-        if self.smooth_n_frames > 1:
-            x = x.unfold(dimension=-1, size=self.smooth_n_frames, step=1)
-            x = tr.mean(x, dim=-1, keepdim=False)
         return x
 
 
@@ -91,7 +75,6 @@ class Spectral2DCNN(nn.Module):
     def __init__(self,
                  in_ch: int = 1,
                  n_samples: int = 88200,
-                 # n_samples: int = 176400,
                  sr: float = 44100,
                  n_fft: int = 1024,
                  hop_len: int = 256,
@@ -137,19 +120,6 @@ class Spectral2DCNN(nn.Module):
                                           n_mels=n_mels,
                                           center=True)
         n_bins = n_mels
-
-        # self.scat_1d = kymatio.torch.TimeFrequencyScattering(J=10,
-        #                                                      # J_fr=4,
-        #                                                      J_fr=1,
-        #                                                      T=256,
-        #                                                      F=1,
-        #                                                      Q=(8, 1),
-        #                                                      # Q=(1, 1),
-        #                                                      Q_fr=1,
-        #                                                      format="joint",
-        #                                                      shape=(n_samples,))
-        # n_bins = 96
-
         n_frames = n_samples // hop_len + 1
         temporal_dims = [n_frames] * len(out_channels)
 
@@ -159,7 +129,6 @@ class Spectral2DCNN(nn.Module):
         layers = []
         for out_ch, b_dil, t_dil, temp_dim in zip(out_channels, bin_dilations, temp_dilations, temporal_dims):
             if use_ln:
-                # layers.append(nn.LayerNorm([in_ch, n_bins, temp_dim], elementwise_affine=False))
                 layers.append(nn.LayerNorm([n_bins, temp_dim], elementwise_affine=False))
             layers.append(nn.Conv2d(in_ch, out_ch, kernel_size, stride=(1, 1), dilation=(b_dil, t_dil), padding="same"))
             layers.append(nn.MaxPool2d(kernel_size=pool_size))
@@ -168,18 +137,12 @@ class Spectral2DCNN(nn.Module):
             n_bins = n_bins // pool_size[0]
         self.cnn = nn.Sequential(*layers)
 
+        # TODO(cm): change from regression to classification
         self.output = nn.Conv1d(out_channels[-1], self.latent_dim, kernel_size=(1,))
 
     def forward(self, x: T) -> (T, T):
         assert x.ndim == 3
         x = self.spectrogram(x)
-
-        # paths = []
-        # for idx in range(x.size(1)):
-        #     ch_x = x[:, idx, :].contiguous()
-        #     ch_x = self.scat_1d(ch_x)
-        #     paths.append(ch_x)
-        # x = tr.cat(paths, dim=1)
 
         # TODO(cm): disable when training EM
         if self.training:
@@ -190,14 +153,6 @@ class Spectral2DCNN(nn.Module):
 
         x = tr.clip(x, min=self.eps)
         x = tr.log(x)
-
-        # for p in x[0, :, :]:
-        #     from matplotlib import pyplot as plt
-        #     # plt.imshow(x[0, 0, :, :])
-        #     plt.imshow(p)
-        #     plt.show()
-        # exit()
-
         x = self.cnn(x)
         x = tr.mean(x, dim=-2)
         latent = x
@@ -293,7 +248,7 @@ class HiddenStateModel(nn.Module):
 
     def detach_hidden(self) -> None:
         if self.is_hidden_init:
-            # TODO: check whether clone is required or not
+            # TODO(cm): check whether clone is required or not
             self.hidden = tuple((h.detach().clone() for h in self.hidden))
 
     def clear_hidden(self) -> None:
@@ -318,7 +273,6 @@ class LSTMEffectModel(HiddenStateModel):
         assert x.ndim == 3
         assert latent.shape == (x.size(0), self.latent_dim, x.size(-1))
         lstm_in = tr.cat([latent, x], dim=1)
-        # lstm_in = x
         lstm_in = tr.swapaxes(lstm_in, 1, 2)
         if self.is_hidden_init:
             lstm_out, new_hidden = self.lstm(lstm_in, self.hidden)
@@ -333,16 +287,7 @@ class LSTMEffectModel(HiddenStateModel):
 
 
 if __name__ == "__main__":
-    # model = SpectralTCN(kernel_size=5,
-    #                     out_channels=[96] * 5,
-    #                     dilations=[1, 3, 9, 27, 81],
-    #                     use_ln=False)
-    # print(model.tcn.calc_receptive_field())
     model = Spectral2DCNN()
-    # model = SpectralDSTCN()
-    # model = LSTMEffectModel()
-
-    # latent = tr.rand((3, 1, 1024))
     audio = tr.rand((3, 1, 88200))
     y = model(audio)
-    print(y.shape)
+    log.info(y[0].shape)

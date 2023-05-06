@@ -62,6 +62,8 @@ data:
 #    n_retries: 10
     check_dataset: false
     end_buffer_n_samples: 0
+#    should_peak_norm: false
+    should_peak_norm: true
 
 model:
   class_path: mod_extraction.lightning.TBPTTLFOEffectModeling

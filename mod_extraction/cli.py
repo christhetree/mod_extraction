@@ -10,8 +10,8 @@ from pytorch_lightning.cli import LightningCLI, LightningArgumentParser
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
 
-from lfo_tcn.callbacks import LogSpecAndModSigCallback, LogAudioCallback
-from lfo_tcn.paths import CONFIGS_DIR
+from mod_extraction.callbacks import LogSpecAndModSigCallback, LogAudioCallback
+from mod_extraction.paths import CONFIGS_DIR
 
 logging.basicConfig()
 log = logging.getLogger(__name__)

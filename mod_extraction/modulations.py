@@ -1,3 +1,4 @@
+# TODO(cm): refactor file, the logic is difficult to follow in a lot of these methods
 import logging
 import os
 from typing import List, Optional
@@ -5,7 +6,7 @@ from typing import List, Optional
 import torch as tr
 from torch import Tensor as T
 
-from lfo_tcn.util import linear_interpolate_last_dim, sample_uniform, choice
+from mod_extraction.util import linear_interpolate_last_dim, sample_uniform, choice
 
 logging.basicConfig()
 log = logging.getLogger(__name__)

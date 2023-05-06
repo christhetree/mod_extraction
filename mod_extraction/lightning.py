@@ -9,11 +9,11 @@ from torch import Tensor as T
 from torch import nn
 from torch.optim import Optimizer
 
-from lfo_tcn.modulations import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
-from lfo_tcn.losses import get_loss_func_by_name
-from lfo_tcn.models import HiddenStateModel
-from lfo_tcn.paths import OUT_DIR
-from lfo_tcn.util import linear_interpolate_last_dim
+from mod_extraction.modulations import stretch_corners, find_valid_mod_sig_indices, make_rand_mod_signal
+from mod_extraction.losses import get_loss_func_by_name
+from mod_extraction.models import HiddenStateModel
+from mod_extraction.paths import OUT_DIR
+from mod_extraction.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -530,7 +530,7 @@ class TBPTTLFOEffectModeling(LFOEffectModeling):
             # prefix = "egfx_fl_rand"
             # prefix = "egfx_ch_rand"
             from matplotlib import pyplot as plt
-            from lfo_tcn.plotting import plot_spectrogram
+            from mod_extraction.plotting import plot_spectrogram
             for idx, (d, w, w_h, m_h) in enumerate(zip(data_dict["dry"],
                                                        data_dict["wet"],
                                                        data_dict["wet_hat"],

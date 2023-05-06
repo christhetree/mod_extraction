@@ -1,23 +1,21 @@
 import logging
 import os
 from collections import defaultdict
-from typing import Dict, Optional, List, Any, Tuple, Type, Union
+from typing import Dict, Optional, List, Any, Tuple, Type
 
-import torch
+import pyloudnorm as pyln
 import torch as tr
 import torchaudio
 from matplotlib import pyplot as plt
 from pedalboard import Pedalboard, Phaser
-from scipy.stats import loguniform
 from torch import Tensor as T
 from torch.utils.data import Dataset
 from tqdm import tqdm
-import pyloudnorm as pyln
 
-from lfo_tcn import fx
-from lfo_tcn.modulations import make_mod_signal, make_quasi_periodic, make_concave_convex_mod_sig, make_combined_mod_sig
-from lfo_tcn.plotting import plot_spectrogram
-from lfo_tcn.util import linear_interpolate_last_dim
+from mod_extraction import fx, util
+from mod_extraction.modulations import make_mod_signal, make_quasi_periodic
+from mod_extraction.plotting import plot_spectrogram
+from mod_extraction.util import linear_interpolate_last_dim
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -103,6 +101,8 @@ class RandomAudioChunkDataset(Dataset):
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
             end_buffer_n_samples: int = 0,
+            should_peak_norm: bool = False,
+            peak_norm_db: float = -1.0,
     ) -> None:
         super().__init__()
         self.input_dir = input_dir
@@ -117,6 +117,8 @@ class RandomAudioChunkDataset(Dataset):
         self.check_dataset = check_dataset
         self.min_suitable_files_fraction = min_suitable_files_fraction
         self.end_buffer_n_samples = end_buffer_n_samples
+        self.should_peak_norm = should_peak_norm
+        self.peak_norm_db = peak_norm_db
         self.max_n_consecutive_silent_samples = int(silence_fraction_allowed * n_samples)
 
         input_paths = self.get_file_paths(input_dir, ext)
@@ -177,7 +179,7 @@ class RandomAudioChunkDataset(Dataset):
         file_n_samples = torchaudio.info(file_path).num_frames
         if n_samples > file_n_samples - end_buffer_n_samples:
             return None
-        start_idx = self.randint(0, file_n_samples - n_samples - end_buffer_n_samples + 1)
+        start_idx = util.randint(0, file_n_samples - n_samples - end_buffer_n_samples + 1)
         audio_chunk, sr = torchaudio.load(
             file_path,
             frame_offset=start_idx,
@@ -190,7 +192,7 @@ class RandomAudioChunkDataset(Dataset):
 
     def search_dataset_for_audio_chunk(self, n_samples: int, end_buffer_n_samples: int = 0) -> (T, str, int, int):
         file_path_pool = list(self.input_paths)
-        file_path = self.choice(file_path_pool)
+        file_path = util.choice(file_path_pool)
         file_path_pool.remove(file_path)
         audio_chunk = None
         n_attempts = 0
@@ -201,23 +203,32 @@ class RandomAudioChunkDataset(Dataset):
                 n_attempts += 1
             if n_attempts >= self.n_retries:
                 assert file_path_pool, "This should never happen if `check_dataset_for_suitable_files` was run"
-                file_path = self.choice(file_path_pool)
+                file_path = util.choice(file_path_pool)
                 file_path_pool.remove(file_path)
                 n_attempts = 0
 
         audio_chunk, start_idx = audio_chunk
         ch_idx = 0
         if audio_chunk.size(0) > 1:
-            ch_idx = self.randint(0, audio_chunk.size(0))
+            ch_idx = util.randint(0, audio_chunk.size(0))
             audio_chunk = audio_chunk[ch_idx, :].view(1, -1)
 
         return audio_chunk, file_path, ch_idx, start_idx
+
+    def peak_normalize(self, audio: T) -> T:
+        assert audio.ndim == 2
+        audio_np = audio.T.numpy()
+        audio_norm_np = pyln.normalize.peak(audio_np, self.peak_norm_db)
+        audio_norm = tr.from_numpy(audio_norm_np.T)
+        return audio_norm
 
     def __len__(self) -> int:
         return self.num_examples_per_epoch
 
     def __getitem__(self, _) -> T:
         audio_chunk, _, _, _ = self.search_dataset_for_audio_chunk(self.n_samples, self.end_buffer_n_samples)
+        if self.should_peak_norm:
+            audio_chunk = self.peak_normalize(audio_chunk)
         return audio_chunk
 
     @staticmethod
@@ -232,39 +243,6 @@ class RandomAudioChunkDataset(Dataset):
         log.info(f"Found {len(input_paths)} files in {input_dir}")
         assert len(input_paths) > 0
         return input_paths
-
-    @staticmethod
-    def choice(items: List[Any]) -> Any:
-        assert len(items) > 0
-        idx = RandomAudioChunkDataset.randint(0, len(items))
-        return items[idx]
-
-    @staticmethod
-    def randint(low: int, high: int, n: int = 1) -> Union[int, T]:
-        x = tr.randint(low=low, high=high, size=(n,))
-        if n == 1:
-            return x.item()
-        return x
-
-    @staticmethod
-    def sample_uniform(low: float, high: float, n: int = 1) -> Union[float, T]:
-        x = (tr.rand(n) * (high - low)) + low
-        if n == 1:
-            return x.item()
-        return x
-
-    @staticmethod
-    def sample_log_uniform(low: float, high: float, n: int = 1) -> Union[float, T]:
-        # TODO(cm): replace with torch
-        if low == high:
-            if n == 1:
-                return low
-            else:
-                return tr.full(size=(n,), fill_value=low)
-        x = loguniform.rvs(low, high, size=n)
-        if n == 1:
-            return float(x)
-        return torch.from_numpy(x)
 
 
 class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
@@ -283,6 +261,8 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
             end_buffer_n_samples: int = 0,
+            should_peak_norm: bool = False,
+            peak_norm_db: float = -1.0,
     ) -> None:
         super().__init__(dry_dir,
                          n_samples,
@@ -295,13 +275,14 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
                          use_debug_mode,
                          check_dataset,
                          min_suitable_files_fraction,
-                         end_buffer_n_samples)
+                         end_buffer_n_samples,
+                         should_peak_norm,
+                         peak_norm_db)
         self.dry_dir = dry_dir
         self.wet_dir = wet_dir
         self.end_buffer_n_samples = end_buffer_n_samples
         all_wet_paths = self.get_file_paths(wet_dir, ext)
         all_wet_names_to_wet_path = {os.path.basename(p): p for p in all_wet_paths}
-        # dry_paths = self.input_paths
         dry_paths = []
         wet_paths = []
         name_to_wet_path = {}
@@ -312,16 +293,15 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
             dry_info = torchaudio.info(dry_p)
             wet_info = torchaudio.info(wet_p)
             if dry_info.sample_rate != wet_info.sample_rate:
+                log.info(f"Different sample rates: {dry_p}, {wet_p}")
                 continue
             if abs(dry_info.num_frames - wet_info.num_frames) > end_buffer_n_samples:
+                log.info(f"Different lengths: {dry_p}, {wet_p}")
                 continue
             if dry_info.num_channels != wet_info.num_channels:
+                log.info(f"Different channels: {dry_p}, {wet_p}")
                 continue
             dry_paths.append(dry_p)
-            # assert dry_info.sample_rate == wet_info.sample_rate, f"Different sample rates: {dry_p}, {wet_p}"
-            # assert abs(dry_info.num_frames - wet_info.num_frames) <= end_buffer_n_samples, \
-            #     f"Different lengths: {dry_p}: {dry_info.num_frames}, {wet_p}: {wet_info.num_frames}"
-            # assert dry_info.num_channels == wet_info.num_channels, f"Different channels: {dry_p}, {wet_p}"
             wet_paths.append(wet_p)
             name_to_wet_path[name] = wet_p
         dry_paths = sorted(dry_paths)
@@ -348,13 +328,9 @@ class RandomAudioChunkDryWetDataset(RandomAudioChunkDataset):
             wet_chunk = wet_chunk[ch_idx, :].view(1, -1)
         assert dry_chunk.shape == wet_chunk.shape
 
-        # TODO(cm)
-        dry = dry_chunk.T.numpy()
-        wet = wet_chunk.T.numpy()
-        dry = pyln.normalize.peak(dry, -1.0)
-        wet = pyln.normalize.peak(wet, -1.0)
-        dry_chunk = tr.from_numpy(dry.T)
-        wet_chunk = tr.from_numpy(wet.T)
+        if self.should_peak_norm:
+            dry_chunk = self.peak_normalize(dry_chunk)
+            wet_chunk = self.peak_normalize(wet_chunk)
 
         return dry_chunk, wet_chunk
 
@@ -375,6 +351,8 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
             check_dataset: bool = True,
             min_suitable_files_fraction: int = 0.5,
             end_buffer_n_samples: int = 0,
+            should_peak_norm: bool = False,
+            peak_norm_db: float = -1.0,
     ) -> None:
         super().__init__(input_dir,
                          n_samples,
@@ -387,19 +365,22 @@ class RandomAudioChunkAndModSigDataset(RandomAudioChunkDataset):
                          use_debug_mode,
                          check_dataset,
                          min_suitable_files_fraction,
-                         end_buffer_n_samples)
+                         end_buffer_n_samples,
+                         should_peak_norm,
+                         peak_norm_db)
         self.fx_config = fx_config
 
     def __getitem__(self, _) -> (T, T, Dict[str, T]):
         audio_chunk = super().__getitem__(_)
-        rate_hz = self.sample_log_uniform(self.fx_config["mod_sig"]["rate_hz"]["min"],
+        rate_hz = util.sample_log_uniform(self.fx_config["mod_sig"]["rate_hz"]["min"],
                                           self.fx_config["mod_sig"]["rate_hz"]["max"])
-        phase = self.sample_uniform(self.fx_config["mod_sig"]["phase"]["min"],
+        phase = util.sample_uniform(self.fx_config["mod_sig"]["phase"]["min"],
                                     self.fx_config["mod_sig"]["phase"]["max"])
-        shape = self.choice(self.fx_config["mod_sig"]["shapes"])
+        shape = util.choice(self.fx_config["mod_sig"]["shapes"])
         exp = self.fx_config["mod_sig"]["exp"]
         mod_sig = make_mod_signal(self.n_samples, self.sr, rate_hz, phase, shape, exp)
 
+        # TODO(cm)
         # mod_sig = make_mod_signal(self.n_samples // 100, self.sr / 100, rate_hz, phase, shape, exp)
         #
         # mod_sig = concave_convex_mod_sig(self.n_samples,
@@ -460,7 +441,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
             log.info(f">10% of the dataset can handle the max_proc_n_samples required for the lowest phaser rate_hz")
 
     def __getitem__(self, idx: int) -> (T, T, T, Dict[str, float]):
-        rate_hz = self.sample_log_uniform(
+        rate_hz = util.sample_log_uniform(
             self.fx_config["pedalboard_phaser"]["rate_hz"]["min"],
             self.fx_config["pedalboard_phaser"]["rate_hz"]["max"],
         )
@@ -476,7 +457,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         proc_mod_sig = make_mod_signal(proc_n_samples, self.sr, rate_hz, tr.pi / 2, "cos")
 
         # TODO(cm): calc phase and add to fx_params
-        start_idx = self.randint(0, proc_n_samples - self.n_samples + 1)
+        start_idx = util.randint(0, proc_n_samples - self.n_samples + 1)
         dry = audio_chunk[:, start_idx:start_idx + self.n_samples]
         wet = proc_audio[:, start_idx:start_idx + self.n_samples]
         mod_sig = proc_mod_sig[start_idx:start_idx + self.n_samples]
@@ -498,11 +479,11 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
                                 rate_hz: float,
                                 ranges: Dict[str, Dict[str, float]]) -> (T, Dict[str, float]):
         board = Pedalboard()
-        depth = RandomAudioChunkDataset.sample_uniform(ranges["depth"]["min"], ranges["depth"]["max"])
-        centre_frequency_hz = RandomAudioChunkDataset.sample_log_uniform(ranges["centre_frequency_hz"]["min"],
-                                                                         ranges["centre_frequency_hz"]["max"])
-        feedback = RandomAudioChunkDataset.sample_uniform(ranges["feedback"]["min"], ranges["feedback"]["max"])
-        mix = RandomAudioChunkDataset.sample_uniform(ranges["mix"]["min"], ranges["mix"]["max"])
+        depth = util.sample_uniform(ranges["depth"]["min"], ranges["depth"]["max"])
+        centre_frequency_hz = util.sample_log_uniform(ranges["centre_frequency_hz"]["min"],
+                                                      ranges["centre_frequency_hz"]["max"])
+        feedback = util.sample_uniform(ranges["feedback"]["min"], ranges["feedback"]["max"])
+        mix = util.sample_uniform(ranges["mix"]["min"], ranges["mix"]["max"])
         board.append(Phaser(rate_hz=rate_hz,
                             depth=depth,
                             centre_frequency_hz=centre_frequency_hz,
@@ -512,7 +493,7 @@ class PedalboardPhaserDataset(RandomAudioChunkAndModSigDataset):
         y = tr.clip(y, -1.0, 1.0)  # TODO(cm): should clip flag
         fx_params = {
             "depth": depth,
-            # "centre_frequency_hz": centre_frequency_hz,  # TODO
+            # "centre_frequency_hz": centre_frequency_hz,  # TODO(cm)
             "feedback": feedback,
             "mix": mix,
             "rate_hz": rate_hz,
@@ -528,7 +509,7 @@ class TremoloDataset(RandomAudioChunkAndModSigDataset):
 
     def __getitem__(self, idx: int) -> (T, T, T, Dict[str, float]):
         dry, mod_sig, fx_params = super().__getitem__(idx)
-        mix = RandomAudioChunkDataset.sample_uniform(
+        mix = util.sample_uniform(
             self.fx_config["tremolo"]["mix"]["min"],
             self.fx_config["tremolo"]["mix"]["max"],
         )
@@ -604,5 +585,5 @@ class RandomPreprocessedDataset(PreprocessedDataset):
         return self.num_examples_per_epoch
 
     def __getitem__(self, idx: int) -> (T, T, T, Dict[str, Any]):
-        rand_idx = RandomAudioChunkDataset.randint(0, len(self.pt_paths))
+        rand_idx = util.randint(0, len(self.pt_paths))
         return super().__getitem__(rand_idx)
