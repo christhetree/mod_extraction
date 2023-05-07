@@ -42,7 +42,16 @@
     Use the methods in <code>scripts/split_datasets.py</code> to split each dataset into train, validation, and test 
     sets.
     </li>
-    <li>Melda instructions TBD</li>
+    <li>
+    (Optional) Download and install the free 
+    <a href="https://www.meldaproduction.com/MPhaser" target=”_blank”>Melda Phaser</a> and 
+    <a href="https://www.meldaproduction.com/MFlanger" target=”_blank”>Melda Flanger</a> plugins.
+    </li>
+    <li>
+    (Optional) Open and modify the <code>ableton/melda_data_generation.als</code> project file in Ableton to export the 
+    train, val, and test datasets for the unseen digital effects evaluation task. Input the 
+    <code>data/idmt_4/</code> directory from step 8 when Ableton asks for the location of the missing audio files.
+    </li>
     <li>
     All models can be trained by modifying <code>scripts/train.py</code> and the corresponding 
     <code>configs/train_ ... .yml</code> config file and then running <code>python scripts/train.py</code>. <br>
@@ -56,6 +65,9 @@
     <li>
     <a href="https://neutone.space" target=”_blank”>Neutone</a> files for running the effect models as a VST can be  
     exported by modifying and running the <code>scripts/export_neutone_models.py</code> file.
+    </li>
+    <li>
+    The source code is currently not documented. Feel free to open an issue if you have questions or comments.
     </li>
 </ol>
 
@@ -109,3 +121,6 @@ We make our code available and provide the trained audio effect models in a real
 [comment]: <> (</code></pre>)
 
 [comment]: <> (</div>)
+
+<hr>
+<p>Send feedback and questions to <a href="https://christhetr.ee" target=”_blank”>Christopher Mitcheltree</a>.</p>
