@@ -1,0 +1,8 @@
+class_path: mod_extraction.models.RandomLFO
+init_args:
+  n_samples: 345
+  sr: 172.5
+  shapes:
+    - cos
+  freq_min: 0.5625
+  freq_max: 0.9375

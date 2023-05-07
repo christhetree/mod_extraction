@@ -17,6 +17,8 @@ if __name__ == "__main__":
     # config_name = "train_lfo_flanger.yml"
 
     config_name = "train_lfo_interwoven_all.yml"
+
+    # config_name = "train_baseline_em_dry_wet.yml"
     # config_name = "train_em_dry_wet.yml"
 
     config_path = os.path.join(CONFIGS_DIR, config_name)

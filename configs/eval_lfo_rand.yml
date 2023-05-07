@@ -1,5 +1,4 @@
 seed_everything: 42
-ckpt_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.ckpt
 
 custom:
   project_name: mod_extraction
@@ -50,8 +49,8 @@ data:
 model:
   class_path: mod_extraction.lightning.LFOExtraction
   init_args:
-    model: ../configs/models/spectral_2dcnn.yml
-    use_dry: true
+    model: ../configs/models/baseline_rand_lfo.yml
+    use_dry: false
     model_smooth_n_frames: 0
     should_stretch: false
     loss_dict:

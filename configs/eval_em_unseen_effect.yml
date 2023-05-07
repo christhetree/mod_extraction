@@ -85,18 +85,15 @@ model:
         n_hidden: 64
         latent_dim: 1
     lfo_model: ../configs/models/spectral_2dcnn.yml
-#    lfo_model: null
     lfo_model_weights_path: ../models/lfo_2dcnn_io_sa_25_25_no_ch_ln__ph_fl_ch_all_2__idmt_4__epoch_197_step_15840.pt
     freeze_lfo_model: true
     use_dry: true
     model_smooth_n_frames: 8
-#    model_smooth_n_frames: 0
     should_stretch: true
 #    should_stretch: false
     max_n_corners: 16
     stretch_smooth_n_frames: 0
     discard_invalid_lfos: true
-#    discard_invalid_lfos: false
     loss_dict:
       l1: 1.0
       esr: 0.0

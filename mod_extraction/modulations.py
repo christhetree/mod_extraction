@@ -6,7 +6,7 @@ from typing import List, Optional
 import torch as tr
 from torch import Tensor as T
 
-from mod_extraction.util import linear_interpolate_last_dim, sample_uniform, choice
+from mod_extraction import util
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ def make_mod_signal(n_samples: int,
     elif shape == "saw":
         mod_sig = saw
     elif shape == "rsaw":
-        mod_sig = tr.roll(1.0 - saw, 1)
+        # mod_sig = tr.roll(1.0 - saw, 1)  # TODO(cm)
+        mod_sig = 1.0 - saw
     elif shape == "tri":
         tri = 2 * saw
         mod_sig = tr.where(tri > 1.0, 2.0 - tri, tri)
@@ -61,36 +62,39 @@ def make_rand_mod_signal(batch_size: int,
                          sr: float,
                          freq_min: float,
                          freq_max: float,
-                         shapes_all: Optional[T] = None,
+                         shapes_gt: Optional[T] = None,
                          shapes: Optional[List[str]] = None,
-                         phase_all: Optional[T] = None,
+                         phase_gt: Optional[T] = None,
                          phase_error: float = 0.5,
-                         freq_all: Optional[T] = None,
+                         freq_gt: Optional[T] = None,
                          freq_error: float = 0.25) -> T:
     if shapes is None:
         shapes = ["cos", "tri", "rect_cos", "inv_rect_cos", "saw", "rsaw"]
     mod_sigs = []
     for idx in range(batch_size):
-        if phase_all is not None:
-            phase = phase_all[idx]
+        if phase_gt is not None:
+            assert phase_gt.size(0) == batch_size
+            phase = phase_gt[idx]
             if phase_error > 0:
-                error = sample_uniform(-1.0, 1.0) * tr.pi * phase_error
+                error = util.sample_uniform(-1.0, 1.0) * tr.pi * phase_error
                 phase += error
                 phase = (phase + (2 * tr.pi)) % (2 * tr.pi)
         else:
-            phase = sample_uniform(0.0, 2 * tr.pi)
-        if freq_all is not None:
-            freq = freq_all[idx]
+            phase = util.sample_uniform(0.0, 2 * tr.pi)
+        if freq_gt is not None:
+            assert freq_gt.size(0) == batch_size
+            freq = freq_gt[idx]
             if freq_error > 0:
-                error = sample_uniform(1.0 - freq_error, 1.0 + freq_error)
+                error = util.sample_uniform(1.0 - freq_error, 1.0 + freq_error)
                 freq *= error
                 freq = tr.clip(freq, freq_min, freq_max)
         else:
-            freq = sample_uniform(freq_min, freq_max)
-        if shapes_all is not None:
-            shape = shapes_all[idx]
+            freq = util.sample_uniform(freq_min, freq_max)
+        if shapes_gt is not None:
+            assert len(shapes_gt) == batch_size
+            shape = shapes_gt[idx]
         else:
-            shape = choice(shapes)
+            shape = util.choice(shapes)
         mod_sig = make_mod_signal(n_samples, sr, freq, phase, shape)
         mod_sigs.append(mod_sig)
     mod_sigs = tr.stack(mod_sigs, dim=0)
@@ -104,13 +108,13 @@ def _time_stretch_section(section: T,
                           r_max: float,
                           lr_split: float = 0.5) -> T:
     size = section.size(0)
-    if sample_uniform(0.0, 1.0) < lr_split:
-        x = int((sample_uniform(l_min, l_max) * size) + 0.5)
+    if util.sample_uniform(0.0, 1.0) < lr_split:
+        x = int((util.sample_uniform(l_min, l_max) * size) + 0.5)
         new_size = max(2, size - x)
     else:
-        x = int((sample_uniform(r_min, r_max) * size) + 0.5)
+        x = int((util.sample_uniform(r_min, r_max) * size) + 0.5)
         new_size = size + x
-    new_section = linear_interpolate_last_dim(section, new_size, align_corners=True)
+    new_section = util.linear_interpolate_last_dim(section, new_size, align_corners=True)
     return new_section
 
 
@@ -148,7 +152,7 @@ def make_quasi_periodic(mod_sig: T,
     sections_len += section.size(0)
     if sections_len < orig_size:
         new_size = section.size(0) + (orig_size - sections_len)
-        section = linear_interpolate_last_dim(section, new_size, align_corners=True)
+        section = util.linear_interpolate_last_dim(section, new_size, align_corners=True)
     sections.append(section)
 
     new_mod_sig = tr.cat(sections, dim=0)
@@ -174,10 +178,10 @@ def make_concave_convex_mod_sig(n_samples: int,
     exp = tr.ones_like(mod_sig)
     prev_idx = 0
     for idx in corner_indices:
-        if sample_uniform(0.0, 1.0) < concave_prob:
-            exp_val = sample_uniform(concave_min, concave_max)
+        if util.sample_uniform(0.0, 1.0) < concave_prob:
+            exp_val = util.sample_uniform(concave_min, concave_max)
         else:
-            exp_val = sample_uniform(convex_min, convex_max)
+            exp_val = util.sample_uniform(convex_min, convex_max)
         exp[prev_idx:idx] = exp_val
         prev_idx = idx
     mod_sig **= exp
@@ -189,7 +193,7 @@ def make_combined_mod_sig(n_samples: int,
                           freq: float,
                           phase: float,
                           shapes: List[str]) -> T:
-    curr_shape = choice(shapes)
+    curr_shape = util.choice(shapes)
     mod_sig = make_mod_signal(n_samples, sr, freq, phase, shape=curr_shape)
     top_corners, bottom_corners = find_corners(mod_sig.unsqueeze(0))
     corners = bottom_corners
@@ -200,7 +204,7 @@ def make_combined_mod_sig(n_samples: int,
         for i, idx in enumerate(corner_indices[1:]):
             prev_idx = corner_indices[i]
             section_len = idx - prev_idx + 1
-            curr_shape = choice(shapes)
+            curr_shape = util.choice(shapes)
             section = make_mod_signal(section_len, section_len, freq=1.0, phase=0.0, shape=curr_shape)
             mod_sig[prev_idx:idx + 1] = section
     return mod_sig
@@ -208,7 +212,7 @@ def make_combined_mod_sig(n_samples: int,
 
 def mod_sig_to_corners(mod_sig: T, n_frames: int) -> (T, T):
     assert mod_sig.ndim == 2
-    mod_sig = linear_interpolate_last_dim(mod_sig, n_frames, align_corners=True)
+    mod_sig = util.linear_interpolate_last_dim(mod_sig, n_frames, align_corners=True)
     return find_corners(mod_sig)
 
 

@@ -10,7 +10,7 @@ from torch import nn
 from torch.optim import Optimizer
 
 from mod_extraction.losses import get_loss_func_by_name
-from mod_extraction.models import HiddenStateModel
+from mod_extraction.models import HiddenStateModel, RandomLFO
 from mod_extraction.modulations import stretch_corners, find_valid_mod_sig_indices
 from mod_extraction.plotting import plot_spectrogram, plot_mod_sig
 from mod_extraction.util import linear_interpolate_last_dim
@@ -85,9 +85,6 @@ class LFOExtraction(BaseLightingModule):
         self.stretch_smooth_n_frames = stretch_smooth_n_frames
         self.sub_batch_size = sub_batch_size
 
-    def forward(self, x: T) -> T:
-        return self.model(x)
-
     def center_crop_mod_sig(self, mod_sig: T, size: int) -> T:
         if size == mod_sig.size(-1):
             return mod_sig
@@ -104,7 +101,9 @@ class LFOExtraction(BaseLightingModule):
         prefix = "train" if is_training else "val"
         dry, wet, mod_sig, fx_params = batch
 
-        if self.use_dry:
+        if isinstance(self.model, RandomLFO):
+            mod_sig_hat = self.model(wet.size(0), fx_params)
+        elif self.use_dry:
             assert dry is not None
             mod_sig_hat, latent = self.model(tr.cat([dry, wet], dim=1))
         else:
@@ -257,12 +256,17 @@ class TBPTTLFOEffectModeling(BaseLightingModule):
         self.automatic_optimization = False
         self.use_gt_mod_sig = lfo_model is None
 
-    def extract_mod_sig(self, wet: T, mod_sig: Optional[T] = None) -> (T, Optional[T]):
+    def extract_mod_sig(self,
+                        wet: T,
+                        mod_sig: Optional[T] = None,
+                        fx_params: Optional[Dict[str, T]] = None) -> (T, Optional[T]):
         with tr.no_grad() if self.lfo_model is None or self.freeze_lfo_model else nullcontext():
             if self.lfo_model is None:
                 assert mod_sig is not None
                 assert mod_sig.ndim == 2
                 mod_sig_hat = mod_sig
+            elif isinstance(self.lfo_model, RandomLFO):
+                mod_sig_hat = self.lfo_model(wet.size(0), fx_params).squeeze(1)
             else:
                 mod_sig_hat, latent = self.lfo_model(wet)
                 mod_sig_hat = mod_sig_hat.squeeze(1)
@@ -316,7 +320,7 @@ class TBPTTLFOEffectModeling(BaseLightingModule):
         if self.use_dry:
             lfo_model_input = tr.cat([dry, wet], dim=1)
 
-        mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig)
+        mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig, fx_params)
         mod_sig_hat, mod_sig, removed_n_frames = self.smooth_stretch_crop_mod_sig(mod_sig_hat, mod_sig)
         n_frames = mod_sig_hat.size(-1)
         n_samples = int((n_frames / (n_frames + removed_n_frames)) * dry.size(-1))
@@ -360,7 +364,7 @@ class TBPTTLFOEffectModeling(BaseLightingModule):
                 break
 
             if is_training and not self.freeze_lfo_model:
-                mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig)
+                mod_sig_hat, mod_sig = self.extract_mod_sig(lfo_model_input, mod_sig, fx_params)
                 mod_sig_hat, mod_sig, _ = self.smooth_stretch_crop_mod_sig(mod_sig_hat, mod_sig)
                 mod_sig_hat_sr = linear_interpolate_last_dim(mod_sig_hat, dry.size(-1), align_corners=True)
                 mod_sig_hat_sr = mod_sig_hat_sr.unsqueeze(1)

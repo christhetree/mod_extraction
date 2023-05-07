@@ -1,0 +1,11 @@
+class_path: mod_extraction.models.RandomLFO
+init_args:
+  n_samples: 345
+  sr: 172.5
+  use_shape_gt: true
+  use_phase_gt: true
+  use_freq_gt: true
+  freq_min: 0.5
+  freq_max: 3.0
+  phase_error: 0.5
+  freq_error: 0.25

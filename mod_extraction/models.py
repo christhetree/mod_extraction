@@ -1,18 +1,72 @@
 import logging
 import math
 import os
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 import torch as tr
 from torch import Tensor as T
 from torch import nn
 from torchaudio.transforms import Spectrogram, MelSpectrogram, FrequencyMasking, TimeMasking
 
+from mod_extraction.modulations import make_rand_mod_signal
 from mod_extraction.tcn import TCN
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(level=os.environ.get('LOGLEVEL', 'INFO'))
+
+
+class RandomLFO(nn.Module):
+    def __init__(self,
+                 n_samples: int,
+                 sr: float,
+                 use_shape_gt: bool = False,
+                 use_phase_gt: bool = False,
+                 use_freq_gt: bool = False,
+                 shapes: Optional[List[str]] = None,
+                 freq_min: float = 0.5,
+                 freq_max: float = 3.0,
+                 phase_error: float = 0.0,
+                 freq_error: float = 0.0) -> None:
+        super().__init__()
+        self.n_samples = n_samples
+        self.sr = sr
+        self.use_shape_gt = use_shape_gt
+        self.use_phase_gt = use_phase_gt
+        self.use_freq_gt = use_freq_gt
+        self.shapes = shapes
+        self.freq_min = freq_min
+        self.freq_max = freq_max
+        self.phase_error = phase_error
+        self.freq_error = freq_error
+
+    def forward(self, batch_size: int, fx_params: Optional[Dict[str, T]] = None) -> T:
+        shapes_gt = None
+        phase_gt = None
+        freq_gt = None
+        if self.use_shape_gt:
+            assert fx_params is not None and "shape" in fx_params
+            shapes_gt = fx_params["shape"]
+        if self.use_phase_gt:
+            assert fx_params is not None and "phase" in fx_params
+            phase_gt = fx_params["phase"]
+        if self.use_freq_gt:
+            assert fx_params is not None and "rate_hz" in fx_params
+            freq_gt = fx_params["rate_hz"]
+
+        return make_rand_mod_signal(
+            batch_size,
+            self.n_samples,
+            self.sr,
+            self.freq_min,
+            self.freq_max,
+            shapes_gt,
+            self.shapes,
+            phase_gt,
+            self.phase_error,
+            freq_gt,
+            self.freq_error,
+        ).unsqueeze(1)
 
 
 class SpectralTCN(nn.Module):
