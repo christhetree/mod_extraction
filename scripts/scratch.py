@@ -239,3 +239,28 @@
 # mod_sig_hat = mod_sig_hat.to(self.device)
 
 # mod_sig_hat = tr.zeros((wet.size(0), 345)).to(self.device)
+
+
+# =========================================================================================
+
+
+# if __name__ == "__main__":
+#     flanger = MonoFlangerChorusModule(3, 2, 16000, 44100, 1, 5)
+#     audio_in = tr.rand(3, 2, 16000)
+#     mod_sig = tr.rand(3, 2, 16000)
+#     min_delay_width = tr.ones(3)
+#     width = tr.ones(3)
+#     depth = tr.ones(3)
+#     mix = tr.ones(3)
+#     feedback = tr.ones(3) * 0.5
+#     audio_out = flanger.apply_effect(audio_in, mod_sig, feedback, min_delay_width, width, depth, mix)
+#     print(audio_out.shape)
+
+
+# if __name__ == "__main__":
+#     idx = 3
+#     dry, sr = torchaudio.load(f"../docs/audio/melda/melda_ph_{idx}_dry.wav")
+#     wet, sr = torchaudio.load(f"../docs/audio/melda/melda_ph_quasi_lstm_{idx}_wet.wav")
+#     wet_hat, sr = torchaudio.load(f"../docs/audio/melda/melda_ph_quasi_lstm_{idx}_wet_hat.wav")
+#
+#     plot_waveforms_stacked([dry, wet, wet_hat], sr, show=True)

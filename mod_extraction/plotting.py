@@ -72,9 +72,10 @@ def plot_mod_sig(mod_sig_hat: T,
                  mod_sig: Optional[T] = None,
                  mod_sig_hat_c: str = "orange",
                  mod_sig_c: str = "black",
-                 linewidth: float = 4.0,
+                 linewidth: float = 3.0,
                  save_name: Optional[str] = None,
-                 save_dir: str = OUT_DIR) -> None:
+                 save_dir: str = OUT_DIR,
+                 l1_error_title: bool = True) -> None:
     if mod_sig is not None:
         plt.plot(mod_sig, c=mod_sig_c, linewidth=linewidth)
     plt.plot(mod_sig_hat, c=mod_sig_hat_c, linewidth=linewidth)
@@ -84,6 +85,12 @@ def plot_mod_sig(mod_sig_hat: T,
     ax.set_xticks([])
     ax.set_yticks([0.0, 0.5, 1.0])
     plt.yticks(fontsize=18)
+
+    if l1_error_title and mod_sig is not None:
+        assert mod_sig.shape == mod_sig_hat.shape
+        mae = tr.mean(tr.abs(mod_sig - mod_sig_hat))
+        plt.title(f"{mae * 100:.1f}% L1 Error", fontsize=28)
+
     plt.tight_layout()
     if save_name:
         plt.savefig(os.path.join(save_dir, f"{save_name}.svg"))
@@ -134,10 +141,15 @@ def plot_waveforms_stacked(waveforms: List[T],
         librosa.display.waveshow(w, axis=axis, sr=sr, label=label, ax=ax)
         ax.set_title(label)
         ax.grid(color="lightgray", axis="x")
+        # ax.set_xticks([])
+        # ax.set_yticks([])
 
     if title is not None:
         fig.suptitle(title)
     fig.tight_layout()
+
+    # fig.savefig(os.path.join(OUT_DIR, f"3.svg"))
+
     if show:
         fig.show()
     return fig

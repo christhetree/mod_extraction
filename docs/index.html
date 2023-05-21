@@ -31,16 +31,17 @@
             </p>
 
             <p class="lead">Centre for Digital Music, Queen Mary University of London</p>
+
             <div>
-                <a class="btn btn-outline-dark" href="docs/dafx_2023_lfo_v2.pdf" target=”_blank” type="button">
+                <a class="btn btn-outline-dark" href="docs/mitcheltree2023modulation.pdf" target=”_blank” type="button">
                     <i class="bi bi-newspaper"></i> Paper</a>
                 <a class="btn btn-outline-dark" href="https://github.com/christhetree/mod_extraction/" target=”_blank”
                    type="button">
                     <i class="bi bi-code-slash"></i> Code</a>
                 <a class="btn btn-outline-dark" href="#plugins" type="button">
                     <i class="bi bi-box"></i> Plugins</a>
-                <!--                    <a class="btn btn-outline-dark" href="https://youtu.be/GIB2rkz0UUw" type="button"> <i-->
-                <!--                            class="bi bi-camera-reels"></i> Video</a>-->
+                <a class="btn btn-outline-dark" href="https://youtu.be/" target=”_blank” type="button">
+                    <i class="bi bi-camera-reels"></i> Video</a>
             </div>
         </div>
     </div>
@@ -52,22 +53,12 @@
             <h2>Abstract</h2>
             <hr>
             <p>
-                Low frequency oscillator (LFO) driven audio effects such as phaser, flanger, and chorus, modify
-                their input using time-varying filters and delays, resulting in characteristic sweeping or widening
-                effects.
-                It has been shown that these effects can be modeled using neural networks that are conditioned with
-                the ground truth LFO signal. However, in most cases this signal is not accessible and cannot be
-                easily measured from the output audio.
-                To address this, we propose a neural network that can accurately extract arbitrary LFO signals from
-                processed audio for multiple digital audio effects, parameter settings, and instrument
-                configurations.
-                Since our system imposes no restrictions on the LFO signal shape, we demonstrate its ability to
-                extract quasiperiodic, combined, and distorted modulation signals that are relevant to analog effect
-                modeling.
-                Furthermore, we show how coupling the extraction model with a simple processing network enables
-                training of end-to-end black-box models of unseen analog or digital LFO-driven audio effects from
-                just dry and wet audio pairs - hence overcoming the need to access the audio effect plugin or
-                internal LFO signal.
+                Low frequency oscillator (LFO) driven audio effects such as phaser, flanger, and chorus, modify an input signal using time-varying filters and delays, resulting in characteristic sweeping or widening effects.
+                It has been shown that these effects can be modeled using neural networks when conditioned with the ground truth LFO signal.
+                However, in most cases, the LFO signal is not accessible and measurement from the audio signal is nontrivial, hindering the modeling process.
+                To address this, we propose a framework capable of extracting arbitrary LFO signals from processed audio across multiple digital audio effects, parameter settings, and instrument configurations.
+                Since our system imposes no restrictions on the LFO signal shape, we demonstrate its ability to extract quasiperiodic, combined, and distorted modulation signals that are relevant to effect modeling.
+                Furthermore, we show how coupling the extraction model with a simple processing network enables training of end-to-end black-box models of unseen analog or digital LFO-driven audio effects using only dry and wet audio pairs, overcoming the need to access the audio effect or internal LFO signal.
                 We make our code available and provide the trained audio effect models in a real-time VST plugin.
             </p>
         </div>
@@ -78,7 +69,7 @@
         <hr>
         <div class="row mb-4">
             <div class="col-md-6 text-center">
-                <img class="img-fluid" src="img/sys_diagram.png">
+                <img class="img-fluid" src="img/system_diagram.svg">
             </div>
             <div class="col-md-6">
                 <p>
@@ -743,10 +734,10 @@
 
         </table>
 
+        <div class="text-center">
         <p class="text-center">Samples were generated randomly from the test dataset and then selected for variety based
-            on the dry sample. No normalization has been applied.</p>
-        <div class="text-center"></div>
-        <hr>
+            on the dry sample. No normalization has been applied.<br>&nbsp;</p>
+        </div>
 
         <h3 class="">EGFx Analog Effects</h3>
 
@@ -1230,48 +1221,11 @@
 
         </table>
 
+        <div class="text-center">
         <p class="text-center">Samples were generated randomly from the test dataset and then selected for variety based
-            on the dry sample. Peak normalization has been applied.</p>
-        <div class="text-center"></div>
-        <hr>
+            on the dry sample. Peak normalization has been applied.<br>&nbsp;</p>
+        </div>
     </div>
-
-    <!--        <div class="row mb-4">-->
-    <!--            <div class="col-md-5">-->
-    <!--                <p class="mt-3">-->
-    <!--                    We found that both the <span class="lstm">LSTM-32</span> and <span class="tcn">TCN-300-C</span>-->
-    <!--                    models produce perceptually similar results.-->
-    <!--                    Although, these results indicate that while both models are significantly closer to the-->
-    <!--                    reference than <span class="signaltrain">SignalTrain</span>,-->
-    <!--                    listeners will still able to hear subtle differences between the reference.-->
-    <!--                    In comments from participants, and in our own listening, we found that this discrepancy was-->
-    <!--                    often due to a subtle difference in how transients were handled by the neural network-->
-    <!--                    approaches.-->
-    <!--                    It appears that both the <span class="lstm">LSTM-32</span> and <span-->
-    <!--                        class="tcn">TCN-300-C</span> models often are less aggressive in suppressing some transients-->
-    <!--                    when large amount of gain reduction are applied.-->
-    <!--                </p>-->
-    <!--            </div>-->
-    <!--            <div class="col-md-7 text-center">-->
-    <!--                <img class="img-fluid" src="img/mushra.svg">-->
-    <!--            </div>-->
-    <!--        </div>-->
-
-    <!--        <div class="section">-->
-    <!--            <h2>Citation</h2>-->
-    <!--            <hr>-->
-    <!--            <div style="background-color: #e9ecef;">-->
-    <!--                <pre><code>-->
-<!--                        @misc{mitcheltree2023modulation,-->
-<!--                              title={Modulation Extraction for LFO-driven Audio Effects},-->
-<!--                              author={Christopher Mitcheltree and Christian J. Steinmetz and Marco Comunità and Joshua D. Reiss},-->
-<!--                              year={2023},-->
-<!--                              eprint={TBD},-->
-<!--                              archivePrefix={arXiv},-->
-<!--                              primaryClass={cs.SD}}-->
-    <!--                </code></pre>-->
-    <!--            </div>-->
-    <!--        </div>-->
 
     <div class="section" id="plugins">
         <h2 class="">Plugins</h2>
@@ -1327,11 +1281,25 @@
         </div>
     </div>
 
+    <div class="section">
+        <h2>Citation</h2>
+        <hr>
+        <p>Accepted to the 26th International Conference on Digital Audio Effects (DAFx23), Copenhagen, Denmark, 4 - 7 September 2023.</p>
+        <div style="background-color: #e9ecef;">
+  <pre><code>
+  @inproceedings{mitcheltree2023modulation,
+                 title={Modulation Extraction for LFO-driven Audio Effects},
+                 author={Christopher Mitcheltree and Christian J. Steinmetz and Marco Comunità and Joshua D. Reiss},
+                 booktitle={International Conference on Digital Audio Effects (DAFx)},
+                 year={2023}}
+  </code></pre>
+        </div>
+    </div>
+
     <hr>
     <footer>
-        <!--            <p>*Accepted to the 152nd AES Convention</p>-->
         <p>Send feedback and questions to <a href="https://christhetr.ee" target=”_blank”>Christopher
-            Mitcheltree</a>.</p>
+            Mitcheltree</a>.<br>Scroll to <a href="#">top</a>.</p>
         <p>&nbsp;</p>
     </footer>
 </div>

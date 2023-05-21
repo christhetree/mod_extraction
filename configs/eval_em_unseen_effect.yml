@@ -37,20 +37,20 @@ data:
     dry_val_dir: ../data/melda_ph_quasi/test/dry
 #    dry_train_dir: ../data/melda_fl_quasi/train/dry
 #    dry_val_dir: ../data/melda_fl_quasi/test/dry
-#    dry_train_dir: ../data/melda_fl_irregular/train/dry
-#    dry_val_dir: ../data/melda_fl_irregular/test/dry
 #    dry_train_dir: ../data/melda_ph_irregular/train/dry
 #    dry_val_dir: ../data/melda_ph_irregular/test/dry
+#    dry_train_dir: ../data/melda_fl_irregular/train/dry
+#    dry_val_dir: ../data/melda_fl_irregular/test/dry
 #    dry_train_dir: ../data/egfx_clean_44100/train
 #    dry_val_dir: ../data/egfx_clean_44100/test
     wet_train_dir: ../data/melda_ph_quasi/train/wet
     wet_val_dir: ../data/melda_ph_quasi/test/wet
 #    wet_train_dir: ../data/melda_fl_quasi/train/wet
 #    wet_val_dir: ../data/melda_fl_quasi/test/wet
-#    wet_train_dir: ../data/melda_fl_irregular/train/wet
-#    wet_val_dir: ../data/melda_fl_irregular/test/wet
 #    wet_train_dir: ../data/melda_ph_irregular/train/wet
 #    wet_val_dir: ../data/melda_ph_irregular/test/wet
+#    wet_train_dir: ../data/melda_fl_irregular/train/wet
+#    wet_val_dir: ../data/melda_fl_irregular/test/wet
 #    wet_train_dir: ../data/egfx_phaser_44100/train
 #    wet_val_dir: ../data/egfx_phaser_44100/test
 #    wet_train_dir: ../data/egfx_flanger_44100/train
