@@ -1,4 +1,4 @@
-name: lfotcn
+name: mod_ex
 channels:
   - defaults
 dependencies:

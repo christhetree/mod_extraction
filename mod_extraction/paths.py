@@ -12,5 +12,5 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 MODELS_DIR = os.path.join(ROOT_DIR, "models")
 OUT_DIR = os.path.join(ROOT_DIR, "out")
 
-assert os.path.exists(DATA_DIR)
-assert os.path.exists(OUT_DIR)
+assert os.path.isdir(DATA_DIR)
+assert os.path.isdir(OUT_DIR)

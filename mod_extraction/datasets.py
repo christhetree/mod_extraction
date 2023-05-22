@@ -109,6 +109,7 @@ class RandomAudioChunkDataset(Dataset):
         self.silence_fraction_allowed = silence_fraction_allowed
         self.silence_threshold_energy = silence_threshold_energy
         self.n_retries = n_retries
+        # TODO(cm): write silence coverage checker for n iterations
         self.check_dataset = check_dataset
         self.min_suitable_files_fraction = min_suitable_files_fraction
         self.end_buffer_n_samples = end_buffer_n_samples

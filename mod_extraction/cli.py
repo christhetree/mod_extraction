@@ -123,12 +123,12 @@ class CustomLightningCLI(LightningCLI):
 
         if config.trainer.devices < 2:
             log.info("Disabling strategy")
-            config.trainer.strategy = None
+            config.trainer.strategy = 'auto'
 
         if not tr.cuda.is_available():
-            config.trainer.accelerator = None
-            config.trainer.devices = None
-            config.trainer.strategy = None
+            config.trainer.accelerator = 'auto'
+            config.trainer.devices = 'auto'
+            config.trainer.strategy = 'auto'
             config.data.init_args.batch_size = config.custom.cpu_batch_size
             config.data.init_args.num_workers = 0
 

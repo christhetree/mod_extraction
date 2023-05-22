@@ -40,8 +40,8 @@
     directories in the data directory.
     </li>
     <li>
-    Rename the root directories of the datasets to <code>idmt_4</code>, <code>egfx_clean</code>, 
-    <code>egfx_phaser</code>, <code>egfx_flanger</code>, and <code>egfx_chorus</code>.
+    Rename the root directories of the datasets to <code>idmt_4</code>, <code>egfx_clean_44100</code>, 
+    <code>egfx_phaser_44100</code>, <code>egfx_flanger_44100</code>, and <code>egfx_chorus_44100</code>.
     </li>
     <li>
     Use the methods in <code>scripts/split_datasets.py</code> to split each dataset into train, validation, and test 
@@ -58,21 +58,22 @@
     <code>data/idmt_4/</code> directory from step 8 when Ableton asks for the location of the missing audio files.
     </li>
     <li>
-    All models can be trained by modifying <code>scripts/train.py</code> and the corresponding 
-    <code>configs/train_ ... .yml</code> config file and then running <code>python scripts/train.py</code>. <br>
+    All models can be evaluated by modifying <code>scripts/validate.py</code> and the corresponding 
+    <code>configs/eval_ ... .yml</code> config file and then running <code>python scripts/validate.py</code>. <br>
     Make sure your PYTHONPATH has been set correctly by running a command like 
     <code>export PYTHONPATH=$PYTHONPATH:BASE_DIR/mod_extraction/</code>.
     </li>
     <li>
-    All models can be evaluated by modifying <code>scripts/validate.py</code> and the corresponding 
-    <code>configs/eval_ ... .yml</code> config file and then running <code>python scripts/validate.py</code>.
+    (Optional) All models can be trained by modifying <code>scripts/train.py</code> and the corresponding 
+    <code>configs/train_ ... .yml</code> config file and then running <code>python scripts/train.py</code>.
     </li>
     <li>
-    <a href="https://neutone.space" target=”_blank”>Neutone</a> files for running the effect models as a VST can be  
-    exported by modifying and running the <code>scripts/export_neutone_models.py</code> file.
+    (Optional) <a href="https://neutone.space" target=”_blank”>Neutone</a> files for running the effect models as a VST   
+    can be exported by modifying and running the <code>scripts/export_neutone_models.py</code> file.
     </li>
     <li>
-    The source code is currently not documented. Feel free to open an issue if you have any questions or comments.
+    The source code is currently not documented, but don't hesitate to open an issue if you have any questions or 
+    comments.
     </li>
 </ol>
 

@@ -32,7 +32,7 @@ data:
     silence_fraction_allowed: 0.1
     silence_threshold_energy: 1e-4
     n_retries: 10
-    check_dataset: false
+    check_dataset: true
     fx_config:
       mod_sig:
         rate_hz:

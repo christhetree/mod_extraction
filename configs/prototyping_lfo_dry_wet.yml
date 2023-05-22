@@ -16,10 +16,10 @@ data:
   init_args:
     batch_size: 125
     num_workers: 8
-    dry_train_dir: ../data/melda_ph_quasi/train/dry
-    dry_val_dir: ../data/melda_ph_quasi/train/dry
-    wet_train_dir: ../data/melda_ph_quasi/train/wet
-    wet_val_dir: ../data/melda_ph_quasi/train/wet
+#    dry_train_dir: ../data/melda_ph_quasi/train/dry
+#    dry_val_dir: ../data/melda_ph_quasi/train/dry
+#    wet_train_dir: ../data/melda_ph_quasi/train/wet
+#    wet_val_dir: ../data/melda_ph_quasi/train/wet
 #    dry_train_dir: ../data/melda_fl_quasi/train/dry
 #    dry_val_dir: ../data/melda_fl_quasi/train/dry
 #    wet_train_dir: ../data/melda_fl_quasi/train/wet
@@ -32,10 +32,10 @@ data:
 #    dry_val_dir: ../data/melda_ph_irregular/train/dry
 #    wet_train_dir: ../data/melda_ph_irregular/train/wet
 #    wet_val_dir: ../data/melda_ph_irregular/train/wet
-#    dry_train_dir: ../data/egfx_clean_44100/train
-#    dry_val_dir: ../data/egfx_clean_44100/val
-#    wet_train_dir: ../data/egfx_phaser_44100/train
-#    wet_val_dir: ../data/egfx_phaser_44100/val
+    dry_train_dir: ../data/egfx_clean_44100/train
+    dry_val_dir: ../data/egfx_clean_44100/val
+    wet_train_dir: ../data/egfx_phaser_44100/train
+    wet_val_dir: ../data/egfx_phaser_44100/val
 #    wet_train_dir: ../data/egfx_flanger_44100/train
 #    wet_val_dir: ../data/egfx_flanger_44100/val
 #    wet_train_dir: ../data/egfx_chorus_44100/train
@@ -46,12 +46,14 @@ data:
     sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-    silence_threshold_energy: 1e-4
-#    silence_threshold_energy: 1e-6
-    n_retries: 1000
-#    n_retries: 10
+#    silence_threshold_energy: 1e-4
+    silence_threshold_energy: 1e-6
+#    n_retries: 1000
+    n_retries: 10
     check_dataset: false
     end_buffer_n_samples: 0
+#    should_peak_norm: false
+    should_peak_norm: true
 
 model:
   class_path: mod_extraction.lightning.LFOExtraction

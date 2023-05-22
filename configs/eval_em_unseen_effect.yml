@@ -1,6 +1,6 @@
 seed_everything: 47
 
-ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_ph_quasi__epoch_241_step_803440.ckpt
+#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_ph_quasi__epoch_241_step_803440.ckpt
 #ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_fl_quasi__epoch_207_step_690560.ckpt
 #ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_ph_irregular__epoch_199_step_664000.ckpt
 #ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_fl_irregular__epoch_202_step_673960.ckpt
@@ -10,7 +10,7 @@ ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__melda_ph_quasi__ep
 #ckpt_path: ../models/rand_phase_rate_triangle__melda_ph_quasi__epoch_88_step_302600.ckpt
 #ckpt_path: ../models/rand_phase_rate_triangle__melda_fl_quasi__epoch_91_step_312800.ckpt
 
-#ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_ph_2_peak__epoch_35_step_95616.ckpt
+ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_ph_2_peak__epoch_35_step_95616.ckpt
 #ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_fl_2_peak__epoch_20_step_55776.ckpt
 #ckpt_path: ../models/lstm_64__lfo_2dcnn_io_sa_25_25_no_ch_ln__egfx_ch_2_peak__epoch_40_step_108896.ckpt
 
@@ -33,44 +33,48 @@ data:
   init_args:
     batch_size: 250
     num_workers: 8
-    dry_train_dir: ../data/melda_ph_quasi/train/dry
-    dry_val_dir: ../data/melda_ph_quasi/test/dry
-#    dry_train_dir: ../data/melda_fl_quasi/train/dry
-#    dry_val_dir: ../data/melda_fl_quasi/test/dry
-#    dry_train_dir: ../data/melda_ph_irregular/train/dry
-#    dry_val_dir: ../data/melda_ph_irregular/test/dry
-#    dry_train_dir: ../data/melda_fl_irregular/train/dry
-#    dry_val_dir: ../data/melda_fl_irregular/test/dry
-#    dry_train_dir: ../data/egfx_clean_44100/train
-#    dry_val_dir: ../data/egfx_clean_44100/test
-    wet_train_dir: ../data/melda_ph_quasi/train/wet
-    wet_val_dir: ../data/melda_ph_quasi/test/wet
-#    wet_train_dir: ../data/melda_fl_quasi/train/wet
-#    wet_val_dir: ../data/melda_fl_quasi/test/wet
-#    wet_train_dir: ../data/melda_ph_irregular/train/wet
-#    wet_val_dir: ../data/melda_ph_irregular/test/wet
-#    wet_train_dir: ../data/melda_fl_irregular/train/wet
-#    wet_val_dir: ../data/melda_fl_irregular/test/wet
-#    wet_train_dir: ../data/egfx_phaser_44100/train
-#    wet_val_dir: ../data/egfx_phaser_44100/test
-#    wet_train_dir: ../data/egfx_flanger_44100/train
-#    wet_val_dir: ../data/egfx_flanger_44100/test
-#    wet_train_dir: ../data/egfx_chorus_44100/train
-#    wet_val_dir: ../data/egfx_chorus_44100/test
     train_num_examples_per_epoch: 0
     val_num_examples_per_epoch: 1000
     n_samples: 88200
     sr: 44100
     ext: wav
     silence_fraction_allowed: 0.1
-    silence_threshold_energy: 1e-4
-#    silence_threshold_energy: 1e-6
-    n_retries: 1000
-#    n_retries: 10
     check_dataset: false
     end_buffer_n_samples: 0
-    should_peak_norm: false
-#    should_peak_norm: true
+
+    # Unseen digital effects settings
+#    dry_train_dir: ../data/melda_ph_quasi/train/dry
+#    dry_val_dir: ../data/melda_ph_quasi/test/dry
+#    dry_train_dir: ../data/melda_fl_quasi/train/dry
+#    dry_val_dir: ../data/melda_fl_quasi/test/dry
+#    dry_train_dir: ../data/melda_ph_irregular/train/dry
+#    dry_val_dir: ../data/melda_ph_irregular/test/dry
+#    dry_train_dir: ../data/melda_fl_irregular/train/dry
+#    dry_val_dir: ../data/melda_fl_irregular/test/dry
+#    wet_train_dir: ../data/melda_ph_quasi/train/wet
+#    wet_val_dir: ../data/melda_ph_quasi/test/wet
+#    wet_train_dir: ../data/melda_fl_quasi/train/wet
+#    wet_val_dir: ../data/melda_fl_quasi/test/wet
+#    wet_train_dir: ../data/melda_ph_irregular/train/wet
+#    wet_val_dir: ../data/melda_ph_irregular/test/wet
+#    wet_train_dir: ../data/melda_fl_irregular/train/wet
+#    wet_val_dir: ../data/melda_fl_irregular/test/wet
+#    silence_threshold_energy: 1e-4
+#    n_retries: 1000
+#    should_peak_norm: false
+
+    # Unseen analog effects settings
+    dry_train_dir: ../data/egfx_clean_44100/train
+    dry_val_dir: ../data/egfx_clean_44100/test
+    wet_train_dir: ../data/egfx_phaser_44100/train
+    wet_val_dir: ../data/egfx_phaser_44100/test
+#    wet_train_dir: ../data/egfx_flanger_44100/train
+#    wet_val_dir: ../data/egfx_flanger_44100/test
+#    wet_train_dir: ../data/egfx_chorus_44100/train
+#    wet_val_dir: ../data/egfx_chorus_44100/test
+    silence_threshold_energy: 1e-6
+    n_retries: 10
+    should_peak_norm: true
 
 model:
   class_path: mod_extraction.lightning.TBPTTLFOEffectModeling
