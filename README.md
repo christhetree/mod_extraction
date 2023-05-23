@@ -16,7 +16,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://christhetree.github.io/mod_extraction/index.html#plugins" target=”_blank”>Plugins</a>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://youtu.be/" target=”_blank”>Video</a>
+<a href="https://youtu.be/nI_S7JTW_XI" target=”_blank”>Video</a>
 </h3>
 
 <hr>
