@@ -10,7 +10,7 @@
 <h2>Links</h2>
 
 <h3>
-<a href="docs/docs/mitcheltree2023modulation.pdf" target=”_blank”>Paper</a>
+<a href="https://arxiv.org/abs/2305.13262" target=”_blank”>Paper</a>
 &nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://christhetree.github.io/mod_extraction/" target=”_blank”>Listening Samples</a>
 &nbsp;&nbsp;&nbsp;&nbsp;
