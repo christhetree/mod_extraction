@@ -47,7 +47,7 @@ class LogSpecAndModSigCallback(Callback):
                                 outputs: (T, Dict[str, T], Optional[Dict[str, T]]),
                                 batch: (T, T, T, Dict[str, T]),
                                 batch_idx: int,
-                                dataloader_idx: int) -> None:
+                                dataloader_idx: int = 0) -> None:
         if outputs is None:
             return
         _, data_dict, fx_params = outputs
@@ -115,7 +115,7 @@ class LogAudioCallback(Callback):
                                 outputs: (T, Dict[str, T], Dict[str, T]),
                                 batch: (T, T, T, Dict[str, T]),
                                 batch_idx: int,
-                                dataloader_idx: int) -> None:
+                                dataloader_idx: int = 0) -> None:
         if outputs is None:
             return
         _, data_dict, fx_params = outputs
