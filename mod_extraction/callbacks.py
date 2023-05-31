@@ -138,7 +138,7 @@ class LogAudioCallback(Callback):
                     w_hat = wet_hat[idx]
                     title = f"idx_{idx}"
                     if fx_params is not None:
-                        params = {k: v[idx] for k, v in fx_params.items()}
+                        params = {k: v[idx] if isinstance(v, T) else v for k, v in fx_params.items()}
                         # TODO: refactor
                         title = ", ".join([f"{k}: {v:.2f}" for k, v in params.items()
                                            if k not in {"phase", "rate_hz", "shape", "exp", "min_delay_ms", "max_lfo_delay_ms"}])
