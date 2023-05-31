@@ -1,0 +1,84 @@
+seed_everything: 42
+
+custom:
+  project_name: mod_extraction
+#  model_name: lstm_64__gt
+  model_name: s4d_24x4_add__gt
+#  model_name: s4d_24x4_do2_pre_add__gt
+  dataset_name: idmt4_ph
+  cpu_batch_size: 8
+  use_wandb: true
+
+trainer:
+  accelerator: gpu
+  benchmark: false
+  devices: [6]
+  max_epochs: 100
+
+data:
+  class_path: mod_extraction.data_modules.PedalboardPhaserDataModule
+  init_args:
+    batch_size: 100
+    num_workers: 8
+    train_dir: ../data/idmt_4/train
+    val_dir: ../data/idmt_4/val
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
+    n_samples: 88200
+    sr: 44100
+    ext: wav
+    silence_fraction_allowed: 0.1
+    silence_threshold_energy: 1e-4
+    n_retries: 10
+    check_dataset: false
+    should_peak_norm: true
+    fx_config:
+      pedalboard_phaser:
+        rate_hz:
+          min: 0.5
+          max: 3.0
+        depth:
+          min: 1.0
+          max: 1.0
+        centre_frequency_hz:
+          min: 440.0
+          max: 440.0
+        feedback:
+          min: 0.2
+          max: 0.2
+        mix:
+          min: 1.0
+          max: 1.0
+
+model:
+  class_path: mod_extraction.lightning.TBPTTLFOEffectModeling
+  init_args:
+    warmup_n_samples: 2048
+    step_n_samples: 2048
+    effect_model:
+#      class_path: mod_extraction.models.LSTMEffectModel
+      class_path: mod_extraction.models.S4DEffectModel
+      init_args:
+        in_ch: 1
+        out_ch: 1
+        n_hidden: 24
+        n_layers: 4
+        dropout: 0.0
+#        dropout: 0.2
+        prenorm: false
+#        prenorm: true
+        latent_dim: 1
+    lfo_model: null
+    model_smooth_n_frames: 0
+    should_stretch: false
+    discard_invalid_lfos: false
+    loss_dict:
+      l1: 1.0
+      esr: 0.0
+      dc: 0.0
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 1e-4
+    betas: [ 0.8, 0.99 ]

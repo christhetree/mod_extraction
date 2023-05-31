@@ -9,6 +9,7 @@ from torch import nn
 from torchaudio.transforms import Spectrogram, MelSpectrogram, FrequencyMasking, TimeMasking
 
 from mod_extraction.modulations import make_rand_mod_signal
+from mod_extraction.s4d import S4D, DropoutNd
 from mod_extraction.tcn import TCN
 
 logging.basicConfig()
@@ -337,6 +338,80 @@ class LSTMEffectModel(HiddenStateModel):
         y_hat = tr.tanh(y_hat)
         self.update_hidden(new_hidden)
         return y_hat
+
+
+class S4DEffectModel(HiddenStateModel):
+    def __init__(self,
+                 in_ch: int = 1,
+                 out_ch: int = 1,
+                 n_hidden: int = 64,
+                 latent_dim: int = 1,
+                 n_layers: int = 4,
+                 dropout: float = 0.2,
+                 prenorm: bool = False,
+                 lr: float = 0.0001) -> None:
+        super().__init__()
+        self.in_ch = in_ch
+        self.out_ch = out_ch
+        self.n_hidden = n_hidden
+        self.latent_dim = latent_dim
+        self.n_layers = n_layers
+        self.dropout = dropout
+        self.prenorm = prenorm
+        self.lr = lr
+
+        self.enc = nn.Linear(in_ch + latent_dim, n_hidden)
+        self.s4_layers = nn.ModuleList()
+        self.norms = nn.ModuleList()
+        self.dropouts = nn.ModuleList()
+        for _ in range(n_layers):
+            self.s4_layers.append(
+                S4D(n_hidden, dropout=dropout, transposed=True, lr=min(0.001, lr))
+            )
+            self.norms.append(nn.LayerNorm(n_hidden))
+            self.dropouts.append(DropoutNd(dropout))
+        self.dec = nn.Linear(n_hidden, out_ch)
+
+    def forward(self, x: T, latent: T) -> T:
+        assert x.ndim == 3
+        assert latent.shape == (x.size(0), self.latent_dim, x.size(-1))
+        in_audio = x
+        x = tr.cat([latent, x], dim=1)
+        x = tr.swapaxes(x, 1, 2)  # (B, L, C)
+        x = self.enc(x)
+        x = tr.swapaxes(x, 1, 2)  # (B, C, L)
+
+        for layer, norm, dropout in zip(self.s4_layers, self.norms, self.dropouts):
+            # Each iteration of this loop will map (B, d_model, L) -> (B, d_model, L)
+            z = x
+            if self.prenorm:
+                # Prenorm
+                z = norm(z.transpose(-1, -2)).transpose(-1, -2)
+            # Apply S4 block: we ignore the state input and output
+            z, _ = layer(z)
+            # Dropout on the output of the S4 block
+            z = dropout(z)
+            # Residual connection
+            x = z + x
+            if not self.prenorm:
+                # Postnorm
+                x = norm(x.transpose(-1, -2)).transpose(-1, -2)
+        x = x.transpose(-1, -2)  # (B, L, C)
+        # Decode the outputs
+        x = self.dec(x)
+        x = x.transpose(-1, -2)  # (B, C, L)
+        y_hat = x + in_audio
+        y_hat = tr.tanh(y_hat)
+        return y_hat
+
+    def update_hidden(self, hidden: Tuple[T, T]) -> None:
+        return
+
+    def detach_hidden(self) -> None:
+        return
+
+    def clear_hidden(self) -> None:
+        return
 
 
 if __name__ == "__main__":
