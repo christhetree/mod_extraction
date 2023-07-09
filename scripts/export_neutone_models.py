@@ -73,7 +73,7 @@ class EffectModelWrapper(WaveformToWaveformBase):
 
     def get_technical_links(self) -> Dict[str, str]:
         return {
-            "Paper": "https://christhetree.github.io/mod_extraction/",
+            "Paper": "https://arxiv.org/abs/2305.13262",
             "Code": "https://github.com/christhetree/mod_extraction/",
         }
 
