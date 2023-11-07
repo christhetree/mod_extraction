@@ -1,5 +1,12 @@
 <div align="center">
 <h1>Modulation Extraction for LFO-driven Audio Effects</h1>
+
+[![arXiv](https://img.shields.io/badge/arXiv-2305.13262-b31b1b.svg)](https://arxiv.org/abs/2305.13262)
+[![Listening Samples](https://img.shields.io/badge/%F0%9F%94%8A%F0%9F%8E%B6-Listening_Samples-blue)](https://christhetree.github.io/mod_extraction/)
+[![Plugins](https://img.shields.io/badge/neutone-Plugins-blue)](https://christhetree.github.io/mod_extraction/index.html#plugins)
+[![Video](https://img.shields.io/badge/Video-blue?logo=youtube&labelColor=555)](https://youtu.be/nI_S7JTW_XI)
+[![License](https://img.shields.io/badge/License-MPL%202.0-orange)](https://www.mozilla.org/en-US/MPL/2.0/FAQ/)
+
 <p>
     <a href="https://christhetr.ee/" target=”_blank”>Christopher Mitcheltree</a>,
     <a href="https://www.christiansteinmetz.com/" target=”_blank”>Christian J. Steinmetz</a>,
@@ -7,15 +14,6 @@
     <a href="https://www.eecs.qmul.ac.uk/~josh/" target=”_blank”>Joshua D. Reiss</a>
 </p>
 
-<h3>
-<a href="https://arxiv.org/abs/2305.13262" target=”_blank”>Paper</a>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://christhetree.github.io/mod_extraction/" target=”_blank”>Listening Samples</a>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://christhetree.github.io/mod_extraction/index.html#plugins" target=”_blank”>Plugins</a>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://youtu.be/nI_S7JTW_XI" target=”_blank”>Video</a>
-</h3>
 </div>
 
 <hr>
