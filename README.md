@@ -1,3 +1,4 @@
+<div align="center">
 <h1>Modulation Extraction for LFO-driven Audio Effects</h1>
 <p>
     <a href="https://christhetr.ee/" target=”_blank”>Christopher Mitcheltree</a>,
@@ -5,9 +6,6 @@
     <a href="https://mcomunita.github.io/" target=”_blank”>Marco Comunità</a>, and
     <a href="https://www.eecs.qmul.ac.uk/~josh/" target=”_blank”>Joshua D. Reiss</a>
 </p>
-
-<hr>
-<h2>Links</h2>
 
 <h3>
 <a href="https://arxiv.org/abs/2305.13262" target=”_blank”>Paper</a>
@@ -18,6 +16,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;
 <a href="https://youtu.be/nI_S7JTW_XI" target=”_blank”>Video</a>
 </h3>
+</div>
 
 <hr>
 <h2>Instructions for Reproducibility</h2>
