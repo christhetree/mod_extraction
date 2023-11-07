@@ -83,10 +83,11 @@
 Accepted to the 26th International Conference on Digital Audio Effects (DAFx23), Copenhagen, Denmark, 4 - 7 September 2023.
 
 <pre><code>@inproceedings{mitcheltree2023modulation,
-               title={Modulation Extraction for LFO-driven Audio Effects},
-               author={Christopher Mitcheltree and Christian J. Steinmetz and Marco Comunità and Joshua D. Reiss},
-               booktitle={International Conference on Digital Audio Effects (DAFx)},
-               year={2023}}
+    title={Modulation Extraction for LFO-driven Audio Effects},
+    author={Christopher Mitcheltree and Christian J. Steinmetz and Marco Comunità and Joshua D. Reiss},
+    booktitle={International Conference on Digital Audio Effects (DAFx)},
+    year={2023}
+}
 </code></pre>
 
 <hr>
