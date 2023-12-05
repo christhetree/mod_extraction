@@ -16,3 +16,4 @@ assert os.path.isdir(DATA_DIR)
 assert os.path.isdir(OUT_DIR)
 
 DEMONSTRATION_PATH = "./demo"
+assert os.path.isdir(DEMONSTRATION_PATH)
