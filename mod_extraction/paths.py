@@ -14,3 +14,5 @@ OUT_DIR = os.path.join(ROOT_DIR, "out")
 
 assert os.path.isdir(DATA_DIR)
 assert os.path.isdir(OUT_DIR)
+
+DEMONSTRATION_PATH = "./demo"
