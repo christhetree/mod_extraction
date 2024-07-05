@@ -27,8 +27,6 @@ class InterwovenDataModule(pl.LightningDataModule):
                  shared_args: Optional[Dict[str, Any]] = None,
                  num_workers: int = 0) -> None:
         super().__init__()
-        self.save_hyperparameters()
-        log.info(f"\n{self.hparams}")
         self.batch_size = batch_size
         self.train_dataset_args = train_dataset_args
         self.val_dataset_args = val_dataset_args
@@ -104,8 +102,6 @@ class RandomAudioChunkDataModule(pl.LightningDataModule):
                  should_peak_norm: bool = False,
                  peak_norm_db: float = -1.0) -> None:
         super().__init__()
-        self.save_hyperparameters()
-        log.info(f"\n{self.hparams}")
         self.batch_size = batch_size
         assert os.path.isdir(train_dir)
         self.train_dir = train_dir
@@ -214,7 +210,6 @@ class RandomAudioChunkDryWetDataModule(RandomAudioChunkDataModule):
                          end_buffer_n_samples,
                          should_peak_norm,
                          peak_norm_db)
-        self.save_hyperparameters()
         self.dry_train_dir = dry_train_dir
         self.dry_val_dir = dry_val_dir
         self.wet_train_dir = wet_train_dir
@@ -296,7 +291,6 @@ class PedalboardPhaserDataModule(RandomAudioChunkDataModule):
                          end_buffer_n_samples,
                          should_peak_norm,
                          peak_norm_db)
-        self.save_hyperparameters()
         self.fx_config = fx_config
 
     def setup(self, stage: str) -> None:
@@ -475,8 +469,6 @@ class PreprocessedDataModule(pl.LightningDataModule):
                  train_num_examples_per_epoch: Optional[int] = None,  # TODO(cm): fix offline config to remove this
                  val_num_examples_per_epoch: Optional[int] = None) -> None:
         super().__init__()
-        self.save_hyperparameters()
-        log.info(f"\n{self.hparams}")
         self.batch_size = batch_size
         assert os.path.isdir(train_dir)
         self.train_dir = train_dir

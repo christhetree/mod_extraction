@@ -56,13 +56,13 @@
     </li>
     <li>
     All models can be evaluated by modifying <code>scripts/validate.py</code> and the corresponding 
-    <code>configs/eval_ ... .yml</code> config file and then running <code>python scripts/validate.py</code>. <br>
+    <code>configs/eval_ ... .yml</code> config file and then running <code>python validate.py</code> from the <code>scripts/</code> directory. <br>
     Make sure your PYTHONPATH has been set correctly by running a command like 
     <code>export PYTHONPATH=$PYTHONPATH:BASE_DIR/mod_extraction/</code>.
     </li>
     <li>
     (Optional) All models can be trained by modifying <code>scripts/train.py</code> and the corresponding 
-    <code>configs/train_ ... .yml</code> config file and then running <code>python scripts/train.py</code>.
+    <code>configs/train_ ... .yml</code> config file and then running <code>python train.py</code> from the <code>scripts/</code> directory.
     </li>
     <li>
     (Optional) <a href="https://neutone.space" target=”_blank”>Neutone</a> files for running the effect models as a VST   

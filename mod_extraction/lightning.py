@@ -74,8 +74,6 @@ class LFOExtraction(BaseLightingModule):
                  sub_batch_size: Optional[int] = None,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
-        self.save_hyperparameters(ignore=["model"])
-        log.info(f"\n{self.hparams}")
         self.model = model
         self.sr = sr
         self.use_dry = use_dry
@@ -143,19 +141,19 @@ class LFOExtraction(BaseLightingModule):
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
         # Debugging loop
-        if wet.size(0) < 15:
-            for idx, (w, m_h) in enumerate(zip(data_dict["wet"], data_dict["mod_sig_hat"])):
-                m = None
-                if "mod_sig" in data_dict:
-                    m = data_dict["mod_sig"][idx]
-                d = None
-                if "dry" in data_dict:
-                    d = data_dict["dry"][idx]
-                plot_mod_sig(m_h, m, save_name=f"{idx}_mod_sig")
-                if d is not None:
-                    plot_spectrogram(d, title=f"{idx}_dry", save_name=f"{idx}_dry", sr=self.sr)
-                plot_spectrogram(w, title=f"{idx}_wet", save_name=f"{idx}_wet", sr=self.sr)
-            exit()
+        # if wet.size(0) < 15:
+        #     for idx, (w, m_h) in enumerate(zip(data_dict["wet"], data_dict["mod_sig_hat"])):
+        #         m = None
+        #         if "mod_sig" in data_dict:
+        #             m = data_dict["mod_sig"][idx]
+        #         d = None
+        #         if "dry" in data_dict:
+        #             d = data_dict["dry"][idx]
+        #         plot_mod_sig(m_h, m, save_name=f"{idx}_mod_sig")
+        #         if d is not None:
+        #             plot_spectrogram(d, title=f"{idx}_dry", save_name=f"{idx}_dry", sr=self.sr)
+        #         plot_spectrogram(w, title=f"{idx}_wet", save_name=f"{idx}_wet", sr=self.sr)
+        #     exit()
 
         return loss, data_dict, fx_params
 
@@ -221,9 +219,6 @@ class TBPTTLFOEffectModeling(BaseLightingModule):
                  discard_invalid_lfos: bool = True,
                  loss_dict: Optional[Dict[str, float]] = None) -> None:
         super().__init__(loss_dict)
-        self.save_hyperparameters(ignore=["effect_model", "lfo_model", "param_model"])
-        log.info(f"\n{self.hparams}")
-
         assert warmup_n_samples > 0
         self.warmup_n_samples = warmup_n_samples
         self.step_n_samples = step_n_samples
@@ -411,15 +406,15 @@ class TBPTTLFOEffectModeling(BaseLightingModule):
             fx_params = {k: v.detach().float().cpu() if isinstance(v, T) else v for k, v in fx_params.items()}
 
         # Debugging loop
-        if wet.size(0) < 15:
-            for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"], data_dict["wet"], data_dict["mod_sig_hat"])):
-                m = None
-                if "mod_sig" in data_dict:
-                    m = data_dict["mod_sig"][idx]
-                plot_mod_sig(m_h, m, save_name=f"{idx}_mod_sig")
-                plot_spectrogram(d, title=f"{idx}_dry", save_name=f"{idx}_dry", sr=self.sr)
-                plot_spectrogram(w, title=f"{idx}_wet", save_name=f"{idx}_wet", sr=self.sr)
-            exit()
+        # if wet.size(0) < 15:
+        #     for idx, (d, w, m_h) in enumerate(zip(data_dict["dry"], data_dict["wet"], data_dict["mod_sig_hat"])):
+        #         m = None
+        #         if "mod_sig" in data_dict:
+        #             m = data_dict["mod_sig"][idx]
+        #         plot_mod_sig(m_h, m, save_name=f"{idx}_mod_sig")
+        #         plot_spectrogram(d, title=f"{idx}_dry", save_name=f"{idx}_dry", sr=self.sr)
+        #         plot_spectrogram(w, title=f"{idx}_wet", save_name=f"{idx}_wet", sr=self.sr)
+        #     exit()
 
         return batch_loss, data_dict, fx_params
 
