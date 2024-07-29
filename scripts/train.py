@@ -24,8 +24,10 @@ if __name__ == "__main__":
 
     # Train effect models and baselines
     # config_name = "train_baseline_em_dry_wet.yml"
-    config_name = "train_em_dry_wet.yml"
+    # config_name = "train_em_dry_wet.yml"
 
+    # Custom dataset
+    config_name = "train_kobol.yml"
     config_path = os.path.join(CONFIGS_DIR, config_name)
     cli = CustomLightningCLI(args=["fit", "-c", config_path],
                              trainer_defaults=CustomLightningCLI.trainer_defaults)

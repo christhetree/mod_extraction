@@ -1,0 +1,95 @@
+seed_everything: 44
+
+custom:
+  project_name: mod_extraction
+#  model_name: lstm_64__rand_melda_quasi
+#  model_name: lstm_64__rand_melda_irregular
+  model_name: lstm_64__rand_egfx
+#  dataset_name: melda_ph_quasi
+#  dataset_name: melda_fl_quasi
+#  dataset_name: melda_fl_irregular
+#  dataset_name: melda_ph_irregular
+  dataset_name: egfx_ph
+#  dataset_name: egfx_fl
+#  dataset_name: egfx_ch
+  cpu_batch_size: 16
+
+trainer:
+  accelerator: gpu
+  benchmark: false
+  devices: [4]
+  max_epochs: 50
+
+data:
+  class_path: mod_extraction.data_modules.RandomAudioChunkDryWetDataModule
+  init_args:
+    batch_size: 32
+    num_workers: 15
+    train_num_examples_per_epoch: 8000
+    val_num_examples_per_epoch: 2000
+    n_samples: 96960
+    sr: 48000
+    ext: wav
+    silence_fraction_allowed: 0.1
+    check_dataset: true
+    end_buffer_n_samples: 0
+
+    # Unseen digital effects settings
+#    dry_train_dir: ../data/melda_ph_quasi/train/dry
+#    dry_val_dir: ../data/melda_ph_quasi/val/dry
+#    dry_train_dir: ../data/melda_fl_quasi/train/dry
+#    dry_val_dir: ../data/melda_fl_quasi/val/dry
+#    dry_train_dir: ../data/melda_fl_irregular/train/dry
+#    dry_val_dir: ../data/melda_fl_irregular/val/dry
+#    dry_train_dir: ../data/melda_ph_irregular/train/dry
+#    dry_val_dir: ../data/melda_ph_irregular/val/dry
+#    wet_train_dir: ../data/melda_ph_quasi/train/wet
+#    wet_val_dir: ../data/melda_ph_quasi/val/wet
+#    wet_train_dir: ../data/melda_fl_quasi/train/wet
+#    wet_val_dir: ../data/melda_fl_quasi/val/wet
+#    wet_train_dir: ../data/melda_fl_irregular/train/wet
+#    wet_val_dir: ../data/melda_fl_irregular/val/wet
+#    wet_train_dir: ../data/melda_ph_irregular/train/wet
+#    wet_val_dir: ../data/melda_ph_irregular/val/wet
+#    silence_threshold_energy: 1e-4
+#    n_retries: 1000
+#    should_peak_norm: false
+
+    # Unseen analog effects settings
+    dry_train_dir: ../data/Kobol/train_dry
+    dry_val_dir: ../data/Kobol/val_dry
+    wet_train_dir: ../data/Kobol/train_wet
+    wet_val_dir: ../data/Kobol/val_wet
+#    wet_train_dir: ../data/egfx_flanger_44100/train
+#    wet_val_dir: ../data/egfx_flanger_44100/val
+#    wet_train_dir: ../data/egfx_chorus_44100/train
+#    wet_val_dir: ../data/egfx_chorus_44100/val
+    silence_threshold_energy: 1e-6
+    n_retries: 10
+    should_peak_norm: true
+
+model:
+  class_path: mod_extraction.lightning.TBPTTLFOEffectModeling
+  init_args:
+    warmup_n_samples: 1024
+    step_n_samples: 1024
+    effect_model:
+      class_path: mod_extraction.models.LSTMEffectModel
+      init_args:
+        in_ch: 1
+        out_ch: 1
+        n_hidden: 64
+        latent_dim: 1
+#    lfo_model: ../configs/models/baseline_melda_quasi.yml
+#    lfo_model: ../configs/models/baseline_melda_irregular.yml
+    lfo_model: ../configs/models/baseline_egfx.yml
+    use_dry: false
+    model_smooth_n_frames: 0
+    should_stretch: false
+    discard_invalid_lfos: false
+    loss_dict:
+      l1: 1.0
+      esr: 0.0
+      dc: 0.0
+
+optimizer: ../configs/opt/adam_w.yml
