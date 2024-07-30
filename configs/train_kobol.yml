@@ -12,7 +12,7 @@ custom:
   dataset_name: egfx_ph
 #  dataset_name: egfx_fl
 #  dataset_name: egfx_ch
-  cpu_batch_size: 16
+  cpu_batch_size: 64
 
 trainer:
   accelerator: gpu
@@ -27,8 +27,8 @@ data:
     num_workers: 15
     train_num_examples_per_epoch: 8000
     val_num_examples_per_epoch: 2000
-    n_samples: 96960
-    sr: 48000
+    n_samples: 64640
+    sr: 32000
     ext: wav
     silence_fraction_allowed: 0.1
     check_dataset: true
@@ -56,10 +56,10 @@ data:
 #    should_peak_norm: false
 
     # Unseen analog effects settings
-    dry_train_dir: ../data/Kobol/train_dry
-    dry_val_dir: ../data/Kobol/val_dry
-    wet_train_dir: ../data/Kobol/train_wet
-    wet_val_dir: ../data/Kobol/val_wet
+    dry_train_dir: ../data/Kobol/train_dry_32000
+    dry_val_dir: ../data/Kobol/val_dry_32000
+    wet_train_dir: ../data/Kobol/train_wet_32000
+    wet_val_dir: ../data/Kobol/val_wet_32000
 #    wet_train_dir: ../data/egfx_flanger_44100/train
 #    wet_val_dir: ../data/egfx_flanger_44100/val
 #    wet_train_dir: ../data/egfx_chorus_44100/train
