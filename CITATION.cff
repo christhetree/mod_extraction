@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you find this project helpful for your own work, please consider citing it:"
+authors:
+  - family-names: "Mitcheltree"
+    given-names: "Christopher"
+    orcid: "https://orcid.org/0000-0002-2844-3650"
+  - family-names: "Steinmetz"
+    given-names: "Christian J."
+    orcid: "https://orcid.org/0000-0002-0971-5729"
+  - family-names: "Comunità"
+    given-names: "Marco"
+    orcid: "https://orcid.org/0000-0001-8097-9877"
+  - family-names: "Reiss"
+    given-names: "Joshua D."
+    orcid: "https://orcid.org/0009-0009-1441-3205"
+title: "Modulation Extraction for LFO-driven Audio Effects"
+url: "https://github.com/christhetree/mod_extraction"
+preferred-citation:
+  type: conference-paper
+  authors:
+    - family-names: "Mitcheltree"
+      given-names: "Christopher"
+      orcid: "https://orcid.org/0000-0002-2844-3650"
+    - family-names: "Steinmetz"
+      given-names: "Christian J."
+      orcid: "https://orcid.org/0000-0002-0971-5729"
+    - family-names: "Comunità"
+      given-names: "Marco"
+      orcid: "https://orcid.org/0000-0001-8097-9877"
+    - family-names: "Reiss"
+      given-names: "Joshua D."
+      orcid: "https://orcid.org/0009-0009-1441-3205"
+  title: "Modulation Extraction for LFO-driven Audio Effects"
+  collection-title: "International Conference on Digital Audio Effects (DAFx)"
+  year: 2023
+  url: "https://arxiv.org/abs/2305.13262"
